@@ -391,12 +391,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Define variables to track image-related context
+    let lastMessageType = null;
+    let lastGeneratedImageBase64 = null;
+    
+    // Update last generated image base64 data for editing
+    window.updateLastGeneratedImage = function(base64Data) {
+        lastGeneratedImageBase64 = base64Data;
+    };
+    
     // Handle sending a message
     async function handleSendMessage() {
         const message = userInput.value.trim();
         if (message === '' && !lastUpload) return;
 
         if (isWaitingForResponse) return;
+        
+        // Check if this is an image editing request
+        if (lastMessageType === 'image' && lastGeneratedImageBase64 && 
+           (message.toLowerCase().includes('edit') || 
+            message.toLowerCase().includes('modify') || 
+            message.toLowerCase().includes('change') || 
+            message.toLowerCase().includes('update') || 
+            message.toLowerCase().includes('adjust'))) {
+            
+            // Handle as an image editing request
+            if (window.handleImageEditing) {
+                addMessageToChat('user', message);
+                addBotThinkingIndicator();
+                window.handleImageEditing(message, lastGeneratedImageBase64, document.querySelector('.message.bot:last-child'));
+                clearInput();
+                return;
+            }
+        }
         
         // Check if a model is selected - use value from either selector
         const selectedModel = modelSelect.value || (modelSelectMobile ? modelSelectMobile.value : '');
@@ -471,10 +498,14 @@ document.addEventListener('DOMContentLoaded', () => {
             welcomeMessage.style.display = 'none';
         }
         
-        // Check if this is an image generation request
-        if (message.toLowerCase().includes('generate') && 
+        // Check if this is an image generation request using more sophisticated detection
+        if ((message.toLowerCase().includes('generate') && 
             (message.toLowerCase().includes('image') || message.toLowerCase().includes('picture') || 
-             message.toLowerCase().includes('photo'))) {
+             message.toLowerCase().includes('photo'))) ||
+            (window.isImageGenerationRequest && window.isImageGenerationRequest(message))) {
+            
+            // Track this as an image message for potential editing later
+            lastMessageType = 'image';
             
             // Add user message to chat
             addMessageToChat('user', message);
@@ -1109,6 +1140,20 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        // Get system prompt for this model if available
+        let systemPrompt = "";
+        if (window.getModelSystemPrompt) {
+            systemPrompt = window.getModelSystemPrompt(selectedModel);
+        }
+        
+        // Add system prompt to messages if it exists and there isn't already a system message
+        if (systemPrompt && !messages.some(msg => msg.role === 'system')) {
+            messages.unshift({
+                "role": "system",
+                "content": systemPrompt
+            });
+        }
+        
         // Prepare the payload
         const payload = {
             "model": selectedModel,
@@ -1257,11 +1302,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                             // Add event listeners to run code buttons
                                             addRunCodeButtonListeners();
                                             
-                                            // Only auto-scroll if user is already at the bottom
-                                            // User may want to read previous content while response is generating
-                                            const isScrolledToBottom = chatArea.scrollHeight - chatArea.clientHeight <= chatArea.scrollTop + 100;
-                                            if (isScrolledToBottom && !chatArea.hasAttribute('data-user-scrolled')) {
-                                                chatArea.scrollTop = chatArea.scrollHeight;
+                                            // Use the smart scroll function to maintain proper scroll position
+                                            if (window.smartScroll) {
+                                                window.smartScroll();
                                             }
                                         }
                                     } catch (e) {
@@ -2492,10 +2535,60 @@ ${code}
             const chatItem = document.createElement('div');
             chatItem.className = `chat-item ${chat.id === currentChatId ? 'active' : ''}`;
             chatItem.dataset.id = chat.id;
-            chatItem.textContent = chat.title;
-            chatItem.addEventListener('click', () => loadChat(chat.id));
+            
+            // Get model display name if available
+            let modelName = chat.model || '';
+            if (window.getModelDisplayName && modelName) {
+                modelName = window.getModelDisplayName(modelName);
+            }
+            
+            // Create chat item with delete button
+            chatItem.innerHTML = `
+                <div class="chat-item-content">
+                    ${modelName ? `<strong>${modelName}:</strong> ` : ''}${chat.title}
+                </div>
+                <button class="delete-chat-btn" title="Delete Chat">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            
+            // Add click event to the content area
+            chatItem.querySelector('.chat-item-content').addEventListener('click', () => loadChat(chat.id));
+            
+            // Add delete functionality
+            chatItem.querySelector('.delete-chat-btn').addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent triggering the chat item click
+                deleteChat(chat.id);
+            });
+            
             chatHistory.appendChild(chatItem);
         });
+    }
+    
+    // Function to delete a chat
+    function deleteChat(chatId) {
+        // Ask for confirmation
+        if (!confirm('Are you sure you want to delete this chat?')) {
+            return;
+        }
+        
+        // Delete the chat data
+        delete conversations[chatId];
+        
+        // Save to localStorage
+        saveConversationsToLocalStorage();
+        
+        // Update the sidebar
+        updateChatHistorySidebar();
+        
+        // If the deleted chat was the active one, start a new chat
+        if (chatId === currentChatId) {
+            // Clear the chat area and show welcome message
+            chatArea.innerHTML = '';
+            addWelcomeMessage();
+            currentChatId = null;
+            modelSelect.value = '';
+        }
     }
 
     // Save the current conversation
