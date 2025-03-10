@@ -111,6 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sync model selectors
     modelSelect.addEventListener('change', () => {
         console.log("Sidebar model changed to:", modelSelect.value);
+        
+        // Store current chat ID to preserve memory across model changes
+        const savedChatId = currentChatId;
+        
         if (modelSelectMobile) {
             modelSelectMobile.value = modelSelect.value;
             
@@ -137,12 +141,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (welcomeMessage) {
                     welcomeMessage.style.display = 'none';
                 }
+                
+                // Force display of conversation to ensure memory persists
+                displayConversation(currentChatId);
+                
+                // Save to ensure memory is preserved
+                saveConversations();
             }
         }
     });
     
     modelSelectMobile.addEventListener('change', () => {
         console.log("Mobile model changed to:", modelSelectMobile.value);
+        
+        // Store current chat ID to preserve memory across model changes
+        const savedChatId = currentChatId;
+        
         modelSelect.value = modelSelectMobile.value;
         
         // Update model indicator if visible
@@ -168,14 +182,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     welcomeMessage.style.display = 'none';
                 }
                 
-                // If chat area is empty but we have messages, display them again
-                if (chatArea.querySelectorAll('.message').length === 0) {
-                    const chat = conversations[currentChatId];
-                    chat.messages.forEach(msg => {
-                        const fileType = msg.fileType || (msg.image ? 'image/jpeg' : null);
-                        addMessageToChat(msg.role, msg.content, msg.image, fileType);
-                    });
-                }
+                // Force display of conversation to ensure memory persists
+                displayConversation(currentChatId);
+                
+                // Save to ensure memory is preserved
+                saveConversations();
             }
         }
     });
@@ -2468,10 +2479,61 @@ ${code}
         // Save to local storage
         saveConversations();
     }
+    
+    // Function to display a conversation
+    function displayConversation(chatId) {
+        if (!conversations[chatId]) {
+            console.error(`Cannot display conversation: Chat ID ${chatId} not found in conversations`);
+            return;
+        }
+        
+        console.log(`Displaying conversation ID: ${chatId} with ${conversations[chatId].messages.length} messages`);
+        
+        // Clear chat area first to avoid duplicates
+        chatArea.innerHTML = '';
+        
+        const chat = conversations[chatId];
+        
+        // Display each message in the conversation
+        if (chat && chat.messages && chat.messages.length > 0) {
+            chat.messages.forEach(msg => {
+                if (msg.role === 'user') {
+                    // Handle user messages with or without images
+                    if (msg.image) {
+                        addMessageToChat('user', msg.content, msg.image, msg.fileType || 'image/jpeg');
+                    } else {
+                        addMessageToChat('user', msg.content);
+                    }
+                } else if (msg.role === 'assistant') {
+                    // Handle bot messages with or without images
+                    if (msg.image) {
+                        addMessageToChat('bot', msg.content, msg.image);
+                        lastGeneratedImageBase64 = msg.image;
+                        lastMessageType = 'image';
+                    } else {
+                        addMessageToChat('bot', msg.content);
+                        lastMessageType = 'text';
+                    }
+                }
+            });
+            
+            // Scroll to the bottom of the chat
+            scrollChatToBottom();
+            
+            // Update regenerate button state
+            const hasBotMessages = chat.messages.some(msg => msg.role === 'assistant');
+            regenerateBtn.disabled = !hasBotMessages;
+        }
+    }
 
     // Load a specific chat
     function loadChat(chatId) {
-        if (!conversations[chatId]) return;
+        if (!conversations[chatId]) {
+            console.error(`Cannot load chat: ID ${chatId} not found in conversations`);
+            return;
+        }
+        
+        console.log(`Loading chat ID: ${chatId} with ${conversations[chatId].messages.length} messages`);
         
         // Set current chat ID
         currentChatId = chatId;
@@ -2491,7 +2553,7 @@ ${code}
         // Clear chat area
         chatArea.innerHTML = '';
         
-        // Display messages
+        // Get the chat for display
         const chat = conversations[chatId];
         if (chat.messages.length === 0) {
             chatArea.innerHTML = `
@@ -2565,23 +2627,14 @@ ${code}
             
             regenerateBtn.disabled = true;
         } else {
-            // Display all messages with proper handling of uploads
-            chat.messages.forEach(msg => {
-                // Handle backward compatibility - if msg has image but no fileType
-                const fileType = msg.fileType || (msg.image ? 'image/jpeg' : null);
-                
-                // Ensure image data is properly loaded
-                const imageData = msg.image || null;
-                
-                // Add message to chat area
-                addMessageToChat(msg.role, msg.content, imageData, fileType);
-            });
+            // Use our dedicated function to display the conversation
+            displayConversation(chatId);
             
-            // Set last query and enable regenerate button
+            // Set last query for regeneration
             const lastUserMessage = chat.messages.filter(msg => msg.role === 'user').pop();
             if (lastUserMessage) {
                 lastQuery = lastUserMessage.content;
-                regenerateBtn.disabled = false;
+                // Regenerate button is enabled by displayConversation
             }
         }
         
@@ -2731,11 +2784,15 @@ ${code}
 
     // Save conversations to local storage
     function saveConversations() {
+        // Ensure current chat ID is preserved
+        const savedCurrentChatId = currentChatId;
+        
         // Make sure we preserve image data when saving
         const conversationsToSave = JSON.parse(JSON.stringify(conversations));
         
         // Persist the conversations to localStorage
         localStorage.setItem('aiChatConversations', JSON.stringify(conversationsToSave));
+        console.log(`Saved ${Object.keys(conversationsToSave).length} conversations to localStorage, current chat ID: ${savedCurrentChatId}`);
     }
 
     // Load conversations from local storage
@@ -2744,9 +2801,23 @@ ${code}
         if (saved) {
             try {
                 conversations = JSON.parse(saved);
+                console.log(`Loaded ${Object.keys(conversations).length} conversations from localStorage`);
                 
-                // Ensure all messages with images have the correct data structure
-                Object.values(conversations).forEach(chat => {
+                // Ensure all conversations have the required properties
+                Object.keys(conversations).forEach(chatId => {
+                    const chat = conversations[chatId];
+                    
+                    // Ensure chat has an id field
+                    if (!chat.id && chat.id !== 0) {
+                        chat.id = chatId;
+                    }
+                    
+                    // Ensure chat has a messages array
+                    if (!Array.isArray(chat.messages)) {
+                        chat.messages = [];
+                    }
+                    
+                    // Ensure all messages with images have the correct data structure
                     chat.messages.forEach(msg => {
                         // Make sure image data is properly preserved
                         if (msg.image && typeof msg.image === 'string') {
@@ -2760,6 +2831,7 @@ ${code}
                 conversations = {};
             }
         } else {
+            console.log("No saved conversations found in localStorage");
             conversations = {};
         }
     }
