@@ -376,6 +376,26 @@ body {
     margin: 10px auto; /* Center images */
 }
 
+.message-content img.fullscreen-image {
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.message-content img.fullscreen-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Full screen overlay styles */
+.fullscreen-overlay {
+    transition: opacity 0.3s ease;
+    animation: fadeIn 0.3s ease;
+}
+
+.fullscreen-overlay img {
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
+}
+
 /* Fix for any overflowing elements in messages */
 .message-content pre {
     max-width: 100%;

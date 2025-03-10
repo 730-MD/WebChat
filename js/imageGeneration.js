@@ -177,7 +177,6 @@ async function handleImageGeneration(prompt) {
     messageElement.innerHTML = `
         <div class="message-avatar">AI</div>
         <div class="message-content">
-            <p>Generating ${imageCount > 1 ? imageCount + ' images' : 'an image'} of: "${cleanedPrompt}"</p>
             ${carouselHTML}
         </div>
     `;
@@ -264,9 +263,17 @@ async function handleImageGeneration(prompt) {
                     if (placeholder) {
                         const parentItem = placeholder.closest('.carousel-item');
                         parentItem.innerHTML = `
-                            <img src="${result.dataUrl}" alt="Generated image ${result.index + 1}" style="aspect-ratio: ${imageWidth}/${imageHeight};">
+                            <img src="${result.dataUrl}" alt="Generated image ${result.index + 1}" style="aspect-ratio: ${imageWidth}/${imageHeight};" class="fullscreen-image">
                             <div class="carousel-counter">${result.index + 1}/${imageCount}</div>
                         `;
+                        
+                        // Add click event for fullscreen
+                        const img = parentItem.querySelector('img');
+                        if (img) {
+                            img.addEventListener('click', function() {
+                                openImageFullscreen(this);
+                            });
+                        }
                     }
                 } else {
                     // Update single image
@@ -275,8 +282,14 @@ async function handleImageGeneration(prompt) {
                         const img = document.createElement('img');
                         img.src = result.dataUrl;
                         img.alt = "Generated image";
+                        img.className = "fullscreen-image";
                         img.style.aspectRatio = `${imageWidth}/${imageHeight}`;
                         placeholder.parentNode.replaceChild(img, placeholder);
+                        
+                        // Add click event for fullscreen
+                        img.addEventListener('click', function() {
+                            openImageFullscreen(this);
+                        });
                     }
                 }
             } else if (result.error) {
@@ -469,6 +482,72 @@ async function handleImageEditing(message, imageBase64, thinkingElement) {
         }
     }
 }
+
+/**
+ * Function to open an image in fullscreen mode
+ * @param {HTMLElement} img - The image element to display in fullscreen
+ */
+function openImageFullscreen(img) {
+    // Create a fullscreen overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'fullscreen-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.zIndex = '1000';
+    overlay.style.cursor = 'pointer';
+    
+    // Create fullscreen image
+    const fullscreenImg = document.createElement('img');
+    fullscreenImg.src = img.src;
+    fullscreenImg.style.maxWidth = '90%';
+    fullscreenImg.style.maxHeight = '90%';
+    fullscreenImg.style.objectFit = 'contain';
+    fullscreenImg.style.borderRadius = '8px';
+    
+    // Add close button
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '×';
+    closeBtn.style.position = 'absolute';
+    closeBtn.style.top = '20px';
+    closeBtn.style.right = '20px';
+    closeBtn.style.fontSize = '30px';
+    closeBtn.style.color = 'white';
+    closeBtn.style.background = 'none';
+    closeBtn.style.border = 'none';
+    closeBtn.style.cursor = 'pointer';
+    
+    // Close on click or ESC key
+    const closeOverlay = () => {
+        document.body.removeChild(overlay);
+    };
+    
+    closeBtn.addEventListener('click', closeOverlay);
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+            closeOverlay();
+        }
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && document.body.contains(overlay)) {
+            closeOverlay();
+        }
+    });
+    
+    // Add elements to the DOM
+    overlay.appendChild(fullscreenImg);
+    overlay.appendChild(closeBtn);
+    document.body.appendChild(overlay);
+}
+
+// Make the function globally accessible
+window.openImageFullscreen = openImageFullscreen;
 
 // Close the IIFE
 })();
