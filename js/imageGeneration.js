@@ -78,13 +78,25 @@ function parseImagePrompt(prompt) {
 
 // Function to detect if a message is requesting an image generation
 function isImageGenerationRequest(message) {
-    const imageTriggerWords = [
-        // Explicit generation commands
+    // First-level detection: Direct image generation commands (high confidence)
+    const directCommands = [
         /generate(\s+an?)?\s+(image|picture|photo)/i,
         /create(\s+an?)?\s+(image|picture|photo)/i,
         /make(\s+an?)?\s+(image|picture|photo)/i,
         /draw(\s+an?)?\s+(image|picture|photo)/i,
-        
+        /\bshow\s+me\s+(an?\s+)?(image|picture|photo)\s+of\b/i,
+        /\bimage\s+of\b/i,
+        /\bpicture\s+of\b/i
+    ];
+    
+    for (const pattern of directCommands) {
+        if (pattern.test(message)) {
+            return true;
+        }
+    }
+    
+    // Second-level detection: Visual description patterns (medium confidence)
+    const visualDescriptors = [
         // Visual descriptions that suggest image generation
         /\bshow\s+me\s+/i,
         /\bvisualize\s+/i,
@@ -114,11 +126,36 @@ function isImageGenerationRequest(message) {
         /\bturbo\b/i
     ];
     
-    // Check if the message matches any of the image generation patterns
-    for (const pattern of imageTriggerWords) {
+    // Check for visual descriptors
+    for (const pattern of visualDescriptors) {
         if (pattern.test(message)) {
             return true;
         }
+    }
+    
+    // Third-level detection: Advanced heuristics (inferential)
+    // Check if the message looks like a detailed scene description
+    const hasDetailedSceneDescription = /\b(scene|landscape|portrait|character|person|animal|object)\b.*\b(with|having|wearing|surrounded by)\b/i.test(message);
+    
+    // Check for color descriptions
+    const hasColorDescription = /\b(red|blue|green|yellow|purple|pink|black|white|colorful|vibrant|dark|light)\b.*\b(background|foreground|color|colored|colours)\b/i.test(message);
+    
+    // Check for composition indicators
+    const hasCompositionIndicators = /\b(background|foreground|close-up|wide angle|panorama|portrait|landscape orientation)\b/i.test(message);
+    
+    // Check for lighting indicators
+    const hasLightingIndicators = /\b(bright|dark|shadowy|backlit|sunlight|moonlight|natural light|artificial light)\b/i.test(message);
+    
+    // If the message has at least two of these advanced properties, it's likely a detailed image request
+    const advancedHeuristicsScore = [
+        hasDetailedSceneDescription, 
+        hasColorDescription, 
+        hasCompositionIndicators, 
+        hasLightingIndicators
+    ].filter(Boolean).length;
+    
+    if (advancedHeuristicsScore >= 2) {
+        return true;
     }
     
     return false;
@@ -242,73 +279,81 @@ async function handleImageGeneration(prompt) {
         imagePromises.push(imagePromise);
     }
     
-    // Process images as they complete
-    for (let i = 0; i < imagePromises.length; i++) {
-        try {
-            const result = await imagePromises[i];
-            
-            // Update the placeholder with the actual image or error message
-            if (result.dataUrl) {
-                generatedImages[result.index] = result.dataUrl;
-                
-                // Store the base64 image data for potential editing
-                const base64Data = result.dataUrl.split(',')[1];
-                if (window.updateLastGeneratedImage) {
-                    window.updateLastGeneratedImage(base64Data);
-                }
-                
-                if (imageCount > 1) {
-                    // Update carousel item
-                    const placeholder = messageElement.querySelector(`.image-loading-placeholder[data-index="${result.index + 1}"]`);
-                    if (placeholder) {
-                        const parentItem = placeholder.closest('.carousel-item');
-                        parentItem.innerHTML = `
-                            <img src="${result.dataUrl}" alt="Generated image ${result.index + 1}" style="aspect-ratio: ${imageWidth}/${imageHeight};" class="fullscreen-image">
-                            <div class="carousel-counter">${result.index + 1}/${imageCount}</div>
-                        `;
+    // Process all images concurrently for maximum speed
+    Promise.all(imagePromises)
+        .then(results => {
+            // When all images are processed, update the UI
+            results.forEach(result => {
+                try {
+                    // Update the placeholder with the actual image or error message
+                    if (result.dataUrl) {
+                        generatedImages[result.index] = result.dataUrl;
                         
-                        // Add click event for fullscreen
-                        const img = parentItem.querySelector('img');
-                        if (img) {
-                            img.addEventListener('click', function() {
-                                openImageFullscreen(this);
-                            });
+                        // Store the base64 image data for potential editing
+                        const base64Data = result.dataUrl.split(',')[1];
+                        if (window.updateLastGeneratedImage) {
+                            window.updateLastGeneratedImage(base64Data);
+                        }
+                        
+                        if (imageCount > 1) {
+                            // Update carousel item
+                            const placeholder = messageElement.querySelector(`.image-loading-placeholder[data-index="${result.index + 1}"]`);
+                            if (placeholder) {
+                                const parentItem = placeholder.closest('.carousel-item');
+                                parentItem.innerHTML = `
+                                    <img src="${result.dataUrl}" alt="Generated image ${result.index + 1}" style="aspect-ratio: ${imageWidth}/${imageHeight};" class="fullscreen-image">
+                                    <div class="carousel-counter">${result.index + 1}/${imageCount}</div>
+                                `;
+                                
+                                // Add click event for fullscreen
+                                const img = parentItem.querySelector('img');
+                                if (img) {
+                                    img.addEventListener('click', function() {
+                                        openImageFullscreen(this);
+                                    });
+                                }
+                            }
+                        } else {
+                            // Update single image
+                            const placeholder = messageElement.querySelector('.image-loading-placeholder');
+                            if (placeholder) {
+                                const img = document.createElement('img');
+                                img.src = result.dataUrl;
+                                img.alt = "Generated image";
+                                img.className = "fullscreen-image";
+                                img.style.aspectRatio = `${imageWidth}/${imageHeight}`;
+                                placeholder.parentNode.replaceChild(img, placeholder);
+                                
+                                // Add click event for fullscreen
+                                img.addEventListener('click', function() {
+                                    openImageFullscreen(this);
+                                });
+                            }
+                        }
+                    } else if (result.error) {
+                        // Display error for this specific image
+                        const placeholder = messageElement.querySelector(
+                            imageCount > 1 ? 
+                            `.image-loading-placeholder[data-index="${result.index + 1}"]` : 
+                            '.image-loading-placeholder'
+                        );
+                        
+                        if (placeholder) {
+                            placeholder.innerHTML = `<p class="error-message">Error: ${result.error}</p>`;
+                            placeholder.style.display = "flex";
+                            placeholder.style.justifyContent = "center";
+                            placeholder.style.alignItems = "center";
+                            placeholder.style.padding = "20px";
+                            placeholder.style.color = "var(--error-color)";
                         }
                     }
-                } else {
-                    // Update single image
-                    const placeholder = messageElement.querySelector('.image-loading-placeholder');
-                    if (placeholder) {
-                        const img = document.createElement('img');
-                        img.src = result.dataUrl;
-                        img.alt = "Generated image";
-                        img.className = "fullscreen-image";
-                        img.style.aspectRatio = `${imageWidth}/${imageHeight}`;
-                        placeholder.parentNode.replaceChild(img, placeholder);
-                        
-                        // Add click event for fullscreen
-                        img.addEventListener('click', function() {
-                            openImageFullscreen(this);
-                        });
-                    }
+                    
+                    pendingImageGenerations--;
+                } catch (error) {
+                    console.error('Error processing image result:', error);
+                    pendingImageGenerations--;
                 }
-            } else if (result.error) {
-                // Display error for this specific image
-                const placeholder = messageElement.querySelector(
-                    imageCount > 1 ? 
-                    `.image-loading-placeholder[data-index="${result.index + 1}"]` : 
-                    '.image-loading-placeholder'
-                );
-                
-                if (placeholder) {
-                    placeholder.innerHTML = `<p class="error-message">Error: ${result.error}</p>`;
-                    placeholder.style.display = "flex";
-                    placeholder.style.justifyContent = "center";
-                    placeholder.style.alignItems = "center";
-                    placeholder.style.padding = "20px";
-                    placeholder.style.color = "var(--error-color)";
-                }
-            }
+            });
             
             // Enable carousel controls when we have more than one image
             if (imageCount > 1 && generatedImages.filter(Boolean).length > 1) {
@@ -335,20 +380,29 @@ async function handleImageGeneration(prompt) {
                     nextBtn.hasListener = true;
                 }
             }
-            
-            pendingImageGenerations--;
-        } catch (error) {
-            console.error('Error processing image result:', error);
-            pendingImageGenerations--;
-        }
-    }
+        })
+        .catch(error => {
+            console.error('Error in concurrent image processing:', error);
+        });
     
     // Update final message content when all images are done
     isGeneratingImages = false;
     
-    // Save to conversation history
+    // Save to conversation history with image data to preserve it
     if (window.saveConversation) {
-        window.saveConversation(prompt, `Generated ${imageCount} image(s) of: "${cleanedPrompt}"`);
+        // Store the image data so it persists in chat history
+        const imageData = generatedImages.filter(Boolean);
+        if (imageData.length > 0) {
+            // Save with actual image data to prevent "Generated image of" placeholder
+            window.saveConversation(
+                prompt, 
+                `Generated ${imageCount} image(s) of: "${cleanedPrompt}"`,
+                JSON.stringify(imageData),
+                'image_generation'
+            );
+        } else {
+            window.saveConversation(prompt, `Generated ${imageCount} image(s) of: "${cleanedPrompt}"`);
+        }
     }
     if (window.updateChatHistorySidebar) {
         window.updateChatHistorySidebar();
