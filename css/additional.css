@@ -1,0 +1,42 @@
+/* Additional styles for error handling and system messages */
+
+/* Error details styling */
+.message-content .error-details {
+    font-family: monospace;
+    font-size: 0.85em;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.message-content details {
+    margin-top: 10px;
+}
+
+.message-content details summary {
+    cursor: pointer;
+    color: #abb2bf;
+    font-size: 0.9em;
+}
+
+/* System message styling */
+.message.system .message-content {
+    background-color: rgba(255, 165, 0, 0.1);
+    border-left: 3px solid orange;
+    border-radius: 5px;
+    margin: 10px auto;
+    max-width: 90%;
+    font-size: 0.9rem;
+}
+
+.api-warning {
+    color: #ffa600;
+    padding: 8px 12px;
+}
+
+.api-warning i {
+    margin-right: 5px;
+}

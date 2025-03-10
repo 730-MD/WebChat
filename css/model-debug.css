@@ -1,0 +1,63 @@
+/* Styles for the model debugging panel */
+.model-debug {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 0.85em;
+    text-align: left;
+    color: #ddd;
+}
+
+.model-debug p {
+    margin: 5px 0;
+    line-height: 1.3;
+}
+
+/* Make model indicator more visible */
+.model-indicator {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: rgba(58, 134, 255, 0.2);
+    border-radius: 5px;
+    border-left: 3px solid var(--primary-accent);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+/* Enhanced styling for the model selection dropdown */
+.model-select-mobile {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--secondary-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    margin-bottom: 15px;
+    outline: none;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.model-select-mobile:focus {
+    border-color: var(--primary-accent);
+    box-shadow: 0 0 0 2px rgba(58, 134, 255, 0.2);
+}
+
+/* Add a highlight effect when model is selected */
+.model-select-mobile:not([value=""]) {
+    border-color: var(--primary-accent);
+}
+
+/* Help text styling */
+.model-selection-help {
+    margin-top: 15px;
+    font-size: 0.9rem;
+    color: #abb2bf;
+    font-style: italic;
+}
+
+.model-selection-help p {
+    margin-bottom: 5px;
+}

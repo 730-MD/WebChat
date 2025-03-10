@@ -1,1 +1,71 @@
+/* Additional fixes for UI issues */
 
+/* Fix for the input area to ensure it's always visible */
+.input-area {
+    background-color: var(--primary-bg);
+    position: relative;
+    z-index: 15;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Additional mobile fixes */
+@media (max-width: 768px) {
+    .input-area {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 10px;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+    }
+    
+    .chat-area {
+        padding-bottom: 80px; /* Add padding to ensure content isn't hidden behind input */
+    }
+    
+    /* Make the menu toggle more visible */
+    .menu-toggle {
+        background-color: var(--secondary-bg);
+        padding: 8px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Improve touch target size */
+    .code-copy-btn, 
+    .code-run-btn, 
+    .download-btn,
+    .menu-option {
+        min-height: 44px; /* Recommended minimum touch target size */
+        display: flex;
+        align-items: center;
+    }
+    
+    /* Improve the visibility of the tap and hold functionality */
+    .message.bot .message-content {
+        position: relative;
+    }
+    
+    .message.bot .message-content::after {
+        content: '';
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background-color: var(--primary-accent);
+        opacity: 0.5;
+    }
+}
+
+/* Animation for tap feedback */
+@keyframes tapFeedback {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
+
+.tapped {
+    animation: tapFeedback 0.3s ease;
+}
