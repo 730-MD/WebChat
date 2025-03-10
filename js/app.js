@@ -142,6 +142,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     welcomeMessage.style.display = 'none';
                 }
                 
+                // Store the selected model with the current conversation
+                conversations[currentChatId].model = modelSelect.value;
+                console.log(`Updated conversation ${currentChatId} to use model: ${modelSelect.value}`);
+                
                 // Force display of conversation to ensure memory persists
                 displayConversation(currentChatId);
                 
@@ -181,6 +185,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (welcomeMessage) {
                     welcomeMessage.style.display = 'none';
                 }
+                
+                // Store the selected model with the current conversation
+                conversations[currentChatId].model = modelSelectMobile.value;
+                console.log(`Updated conversation ${currentChatId} to use model: ${modelSelectMobile.value}`);
                 
                 // Force display of conversation to ensure memory persists
                 displayConversation(currentChatId);
@@ -644,7 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            // Current datetime
+            // Current datetime for searchgpt
             const currentDatetime = new Date().toISOString();
             // Use -1 for random seed by default
             const randomSeed = -1;
@@ -874,8 +882,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Get selected model
         const selectedModel = modelSelect.value;
 
-        // Current datetime
-        const currentDatetime = new Date().toISOString();
+        // Get system prompt for the selected model
+        let systemPrompt = getModelSystemPrompt(selectedModel);
+
+        // Add current datetime only for searchgpt
+        if (selectedModel === 'searchgpt') {
+            const currentDatetime = new Date().toISOString();
+            systemPrompt = `${systemPrompt}. Current date and time: ${currentDatetime}`;
+        }
 
         // Prepare messages array with system prompt (except for models that don't support system role)
         const messages = [];
@@ -888,13 +902,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!noSystemRoleModels.includes(selectedModel)) {
             messages.push({ 
                 "role": "system", 
-                "content": `You are a helpful AI assistant. Current date and time: ${currentDatetime}`
+                "content": systemPrompt
             });
         } else {
             // For models that don't support system role, add as user message with special prefix
             messages.push({
                 "role": "user",
-                "content": `[SYSTEM] You are a helpful AI assistant. Current date and time: ${currentDatetime}\n\nPlease acknowledge these instructions.`
+                "content": `[SYSTEM] ${systemPrompt}\n\nPlease acknowledge these instructions.`
             });
             
             // Add assistant response to acknowledge system instructions
@@ -2493,6 +2507,15 @@ ${code}
         chatArea.innerHTML = '';
         
         const chat = conversations[chatId];
+        
+        // Set the model selector to the saved model if available
+        if (chat.model) {
+            console.log(`Setting model to ${chat.model} from saved conversation`);
+            modelSelect.value = chat.model;
+            if (modelSelectMobile) {
+                modelSelectMobile.value = chat.model;
+            }
+        }
         
         // Display each message in the conversation
         if (chat && chat.messages && chat.messages.length > 0) {
