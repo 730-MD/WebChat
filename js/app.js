@@ -942,6 +942,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (uploadType && uploadType.startsWith('image/')) {
                     // For images, we can use openai-large to get a description if not already using it
                     if (selectedModel !== 'openai-large') {
+                        // Generate a random seed
+                        const imageProcessingRandomSeed = Math.floor(Math.random() * 1000000);
+                        
                         // Process image with openai-large first
                         const imageProcessingPayload = {
                             "model": "openai-large",
@@ -960,6 +963,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ],
                             "temperature": 0.7,
                             "stream": false,
+                            "seed": imageProcessingRandomSeed,
                             "private": true,
                             "nofeed": true,
                             "token": "gacha11211",
@@ -1002,6 +1006,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Check if we need to process with openai-large first
                     if (selectedModel !== 'openai-large' && fileContentText) {
+                        // Generate a random seed
+                        const fileProcessingRandomSeed = Math.floor(Math.random() * 1000000);
+                        
                         const fileProcessingPayload = {
                             "model": "openai-large",
                             "messages": [
@@ -1016,6 +1023,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ],
                             "temperature": 0.7,
                             "stream": false,
+                            "seed": fileProcessingRandomSeed,
                             "private": true,
                             "nofeed": true,
                             "token": "gacha11211",

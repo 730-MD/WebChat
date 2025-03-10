@@ -21,6 +21,9 @@
                 }
             }
             
+            // Generate a random seed
+            const randomSeed = Math.floor(Math.random() * 1000000);
+            
             // First, get a detailed description of the image using OpenAI
             const payload = {
                 "model": "openai-large",
@@ -48,6 +51,7 @@
                 "temperature": 0.7,
                 "top_p": 1.0,
                 "stream": false,
+                "seed": randomSeed,
                 "private": true,
                 "nofeed": true,
                 "token": "gacha11211",
