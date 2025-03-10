@@ -1,5 +1,72 @@
 /* Additional fixes for UI issues */
 
+/* Style for missing image note */
+.missing-image-note {
+    color: #ff6b6b;
+    font-style: italic;
+    margin-top: 5px;
+}
+
+/* Carousel control fixes */
+.carousel-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.carousel-controls button {
+    background-color: var(--btn-bg);
+    color: var(--text-color);
+    border: none;
+    border-radius: 50%;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.carousel-controls button:hover {
+    background-color: var(--btn-hover-bg);
+}
+
+.carousel-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Ensure carousel images have consistent size */
+.image-carousel img {
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+/* Fix fullscreen view for images */
+.fullscreen-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.fullscreen-overlay img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
 /* Fix for the input area to ensure it's always visible */
 .input-area {
     background-color: var(--primary-bg);
