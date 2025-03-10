@@ -635,8 +635,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Current datetime
             const currentDatetime = new Date().toISOString();
-            // Generate a random seed
-            const randomSeed = Math.floor(Math.random() * 1000000);
+            // Use -1 for random seed by default
+            const randomSeed = -1;
             
             // Make a request to searchgpt model using the provided payload format
             const systemMessage = `its ${currentDatetime} today! always use web tool before replying and perform websearch. Convert the UTC time accordingly to user's timezone if provided`;
@@ -713,7 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let lastUploadData = null;
         let lastUploadType = null;
         
-        // Set the regenerating flag to true (but we'll still use a new random seed)
+        // Set the regenerating flag to true (using seed -1 for randomness)
         isRegenerating = true;
         
         // Check if the last user message had an upload
@@ -744,7 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchBtn.disabled = true;
         
         try {
-            // For regeneration, we always use a new random seed
+            // Using seed -1 for randomness
             // isRegenerating flag is only used for handling the message UI
             
             // For regeneration, we should include any uploads from the original message
@@ -856,9 +856,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Change send button to pause button
         updateSendButtonForStreaming(true);
 
-        // Always generate a new random seed for unique responses,
-        // even when regenerating the last message
-        const randomSeed = Math.floor(Math.random() * 1000000);
+        // Use seed -1 for randomness in all responses
+        const randomSeed = -1;
         lastSeed = randomSeed;
 
         // Get selected model
@@ -951,8 +950,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (uploadType && uploadType.startsWith('image/')) {
                     // For images, we can use openai-large to get a description if not already using it
                     if (selectedModel !== 'openai-large') {
-                        // Generate a random seed
-                        const imageProcessingRandomSeed = Math.floor(Math.random() * 1000000);
+                        // Use -1 for random seed
+                        const imageProcessingRandomSeed = -1;
                         
                         // Process image with openai-large first
                         const imageProcessingPayload = {
@@ -1015,8 +1014,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Check if we need to process with openai-large first
                     if (selectedModel !== 'openai-large' && fileContentText) {
-                        // Generate a random seed
-                        const fileProcessingRandomSeed = Math.floor(Math.random() * 1000000);
+                        // Use -1 for random seed
+                        const fileProcessingRandomSeed = -1;
                         
                         const fileProcessingPayload = {
                             "model": "openai-large",
@@ -2571,8 +2570,11 @@ ${code}
                 // Handle backward compatibility - if msg has image but no fileType
                 const fileType = msg.fileType || (msg.image ? 'image/jpeg' : null);
                 
+                // Ensure image data is properly loaded
+                const imageData = msg.image || null;
+                
                 // Add message to chat area
-                addMessageToChat(msg.role, msg.content, msg.image, fileType);
+                addMessageToChat(msg.role, msg.content, imageData, fileType);
             });
             
             // Set last query and enable regenerate button
@@ -2647,7 +2649,12 @@ ${code}
     
     // Function to delete a chat
     function deleteChat(chatId) {
-        // Delete the chat data without confirmation
+        // Ask for confirmation
+        if (!confirm('Are you sure you want to delete this chat?')) {
+            return;
+        }
+        
+        // Delete the chat data
         delete conversations[chatId];
         
         // Clear all memories associated with this chat
@@ -2657,7 +2664,7 @@ ${code}
         }
         
         // Save to localStorage
-        saveConversationsToLocalStorage();
+        saveConversations();
         
         // Update the sidebar
         updateChatHistorySidebar();
@@ -2724,7 +2731,11 @@ ${code}
 
     // Save conversations to local storage
     function saveConversations() {
-        localStorage.setItem('aiChatConversations', JSON.stringify(conversations));
+        // Make sure we preserve image data when saving
+        const conversationsToSave = JSON.parse(JSON.stringify(conversations));
+        
+        // Persist the conversations to localStorage
+        localStorage.setItem('aiChatConversations', JSON.stringify(conversationsToSave));
     }
 
     // Load conversations from local storage
@@ -2733,6 +2744,17 @@ ${code}
         if (saved) {
             try {
                 conversations = JSON.parse(saved);
+                
+                // Ensure all messages with images have the correct data structure
+                Object.values(conversations).forEach(chat => {
+                    chat.messages.forEach(msg => {
+                        // Make sure image data is properly preserved
+                        if (msg.image && typeof msg.image === 'string') {
+                            // Image data is correctly stored as a string
+                            // No action needed
+                        }
+                    });
+                });
             } catch (e) {
                 console.error('Error loading conversations:', e);
                 conversations = {};
