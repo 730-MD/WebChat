@@ -20,7 +20,7 @@ function parseImagePrompt(prompt) {
     let modelName = 'flux'; // Default model
     
     // Check for specific number of images
-    const numberMatch = prompt.match(/generate\s+(\d+)\s+images?/i);
+    const numberMatch = prompt.match(/(\d+)\s+images?/i);
     if (numberMatch && numberMatch[1]) {
         count = parseInt(numberMatch[1]);
         count = Math.min(count, 10); // Limit to 10 images max
@@ -52,11 +52,18 @@ function parseImagePrompt(prompt) {
         cleanedPrompt = cleanedPrompt.replace(/\bturbo\b/gi, '').trim();
     }
     
-    // Clean up the generation part
+    // Clean up the generation part - now more flexible to detect image requests
     cleanedPrompt = cleanedPrompt.replace(/generate\s+(\d+\s+)?images?\s+of\s+/i, '')
                              .replace(/generate\s+(\d+\s+)?pictures?\s+of\s+/i, '')
                              .replace(/generate\s+(\d+\s+)?photos?\s+of\s+/i, '')
                              .replace(/generate\s+/i, '')
+                             .replace(/create\s+(\d+\s+)?images?\s+of\s+/i, '')
+                             .replace(/make\s+(\d+\s+)?images?\s+of\s+/i, '')
+                             .replace(/show\s+(\d+\s+)?images?\s+of\s+/i, '')
+                             .replace(/draw\s+(\d+\s+)?images?\s+of\s+/i, '')
+                             .replace(/show\s+me\s+/i, '')
+                             .replace(/\bimage\s+of\b/i, '')
+                             .replace(/\bpicture\s+of\b/i, '')
                              .trim();
     
     return {
@@ -68,6 +75,57 @@ function parseImagePrompt(prompt) {
         modelName
     };
 }
+
+// Function to detect if a message is requesting an image generation
+function isImageGenerationRequest(message) {
+    const imageTriggerWords = [
+        // Explicit generation commands
+        /generate(\s+an?)?\s+(image|picture|photo)/i,
+        /create(\s+an?)?\s+(image|picture|photo)/i,
+        /make(\s+an?)?\s+(image|picture|photo)/i,
+        /draw(\s+an?)?\s+(image|picture|photo)/i,
+        
+        // Visual descriptions that suggest image generation
+        /\bshow\s+me\s+/i,
+        /\bvisualize\s+/i,
+        /\billustrate\s+/i,
+        
+        // Dimensional specifications that suggest image generation
+        /\b\d+x\d+\b/i,
+        
+        // Style-related image generation requests
+        /\bin\s+(the\s+)?(style|manner)\s+of\b/i,
+        /\bphotorealistic\b/i,
+        /\bcartoon\s+(style)?\b/i,
+        /\b3d\s+render(ing)?\b/i,
+        
+        // Art style specifications
+        /\boil\s+painting\b/i,
+        /\bwatercolor\b/i,
+        /\bdigital\s+art\b/i,
+        /\bpencil\s+sketch\b/i,
+        
+        // Image enhancement or editing requests
+        /\benhance\b/i,
+        /\bimprove\s+the\s+image\b/i,
+        
+        // Model specifications
+        /\bflux\b/i,
+        /\bturbo\b/i
+    ];
+    
+    // Check if the message matches any of the image generation patterns
+    for (const pattern of imageTriggerWords) {
+        if (pattern.test(message)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Make the function globally accessible
+window.isImageGenerationRequest = isImageGenerationRequest;
 
 // Function to handle image generation requests
 async function handleImageGeneration(prompt) {
@@ -193,6 +251,12 @@ async function handleImageGeneration(prompt) {
             // Update the placeholder with the actual image or error message
             if (result.dataUrl) {
                 generatedImages[result.index] = result.dataUrl;
+                
+                // Store the base64 image data for potential editing
+                const base64Data = result.dataUrl.split(',')[1];
+                if (window.updateLastGeneratedImage) {
+                    window.updateLastGeneratedImage(base64Data);
+                }
                 
                 if (imageCount > 1) {
                     // Update carousel item

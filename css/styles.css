@@ -149,10 +149,18 @@ body {
     border-radius: 5px;
     cursor: pointer;
     font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.chat-item-content {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: background-color 0.2s ease;
+    flex-grow: 1;
 }
 
 .chat-item:hover {
@@ -162,6 +170,30 @@ body {
 .chat-item.active {
     background-color: var(--hover-color);
     border-left: 3px solid var(--primary-accent);
+}
+
+.delete-chat-btn {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.chat-item:hover .delete-chat-btn {
+    opacity: 1;
+}
+
+.delete-chat-btn:hover {
+    color: var(--error-color);
+    background-color: rgba(244, 67, 54, 0.1);
 }
 
 /* Main content styles */
