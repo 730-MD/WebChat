@@ -401,7 +401,14 @@ async function handleImageGeneration(prompt) {
                 'image_generation'
             );
         } else {
-            window.saveConversation(prompt, `Generated ${imageCount} image(s) of: "${cleanedPrompt}"`);
+            // Even when no images are successfully generated, still use image_generation type
+            // to ensure the message is properly formatted
+            window.saveConversation(
+                prompt, 
+                `Generated ${imageCount} image(s) of: "${cleanedPrompt}"`,
+                "[]",
+                'image_generation'
+            );
         }
     }
     if (window.updateChatHistorySidebar) {
@@ -419,6 +426,46 @@ async function handleImageGeneration(prompt) {
 function getChatArea() {
     return document.getElementById('chat-area');
 }
+
+// Function to render saved image data when loading chats
+window.renderSavedImageData = function(imageData, imageCount, placeholderText) {
+    try {
+        const images = JSON.parse(imageData);
+        if (!Array.isArray(images) || images.length === 0) {
+            return `<p>Generated image(s) not available</p>`;
+        }
+        
+        if (images.length === 1) {
+            // Single image display
+            return `<div>
+                <p>${placeholderText}</p>
+                <img src="${images[0]}" alt="Generated image" class="fullscreen-image">
+            </div>`;
+        } else {
+            // Carousel for multiple images
+            const carouselItems = images.map((img, i) => `
+                <div class="carousel-item">
+                    <img src="${img}" alt="Generated image ${i + 1}" class="fullscreen-image">
+                    <div class="carousel-counter">${i + 1}/${images.length}</div>
+                </div>
+            `).join('');
+            
+            return `<div>
+                <p>${placeholderText}</p>
+                <div class="image-carousel">
+                    ${carouselItems}
+                </div>
+                <div class="carousel-controls">
+                    <button class="prev-btn"><i class="fas fa-chevron-left"></i></button>
+                    <button class="next-btn"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>`;
+        }
+    } catch (error) {
+        console.error('Error rendering saved image data:', error);
+        return `<p>Error displaying generated images: ${error.message}</p>`;
+    }
+};
 
 // Function to handle image editing requests (using OpenAI to generate a description and then generating a new image)
 async function handleImageEditing(message, imageBase64, thinkingElement) {

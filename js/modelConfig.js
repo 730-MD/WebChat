@@ -17,7 +17,8 @@ const modelConfigurations = {
     },
     "openai-reasoning": {
         displayName: "GPT-o1",
-        systemPrompt: "You are chatgpt-o1 by OpenAI an reasoning model."
+        systemPrompt: "You are chatgpt-o1 by OpenAI an reasoning model.",
+        useUserRoleForSystem: true
     },
     "claude": {
         displayName: "3.5 Haiku",

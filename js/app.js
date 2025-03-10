@@ -1146,12 +1146,30 @@ document.addEventListener('DOMContentLoaded', () => {
             systemPrompt = window.getModelSystemPrompt(selectedModel);
         }
         
+        // Check if this model needs special handling for system prompts (like openai-reasoning)
+        const modelConfig = window.modelConfigurations && window.modelConfigurations[selectedModel];
+        const useUserRoleForSystem = modelConfig && modelConfig.useUserRoleForSystem;
+        
         // Add system prompt to messages if it exists and there isn't already a system message
         if (systemPrompt && !messages.some(msg => msg.role === 'system')) {
-            messages.unshift({
-                "role": "system",
-                "content": systemPrompt
-            });
+            if (useUserRoleForSystem) {
+                // For models that don't support system role, we add it to the first user message
+                // or create a new user message if there are none
+                if (messages.length > 0 && messages[0].role === 'user') {
+                    messages[0].content = `${systemPrompt}\n\n${messages[0].content}`;
+                } else {
+                    messages.unshift({
+                        "role": "user",
+                        "content": systemPrompt
+                    });
+                }
+            } else {
+                // Normal handling for system prompts
+                messages.unshift({
+                    "role": "system",
+                    "content": systemPrompt
+                });
+            }
         }
         
         // Prepare the payload
@@ -1168,6 +1186,13 @@ document.addEventListener('DOMContentLoaded', () => {
             "referrer": "gacha11211", // Updated referrer
             "max_tokens": 4000
         };
+        
+        // Special handling for openai-reasoning model to avoid the system role issue
+        if (selectedModel === 'openai-reasoning') {
+            // Remove any system messages that might cause the API error
+            const filteredMessages = messages.filter(msg => msg.role !== 'system');
+            payload.messages = filteredMessages;
+        }
 
         let retryCount = 0;
         const maxRetries = 2;
@@ -1706,10 +1731,15 @@ ${code}
         let avatarContent = role === 'user' ? 'You' : 'AI';
         let messageContent = content;
         
-        // If there's an upload, add it to the message
+        // Handle different types of content
         if (uploadBase64) {
-            if (uploadType && uploadType.startsWith('image/')) {
-                // If it's an image, display it - don't add text above the image if content is empty
+            if (uploadType === 'image_generation') {
+                // This is a saved generated image
+                const placeholderText = content || 'Generated image';
+                messageContent = window.renderSavedImageData(uploadBase64, 1, placeholderText);
+            }
+            else if (uploadType && uploadType.startsWith('image/')) {
+                // If it's an uploaded image, display it - don't add text above the image if content is empty
                 if (content && content.trim() !== '') {
                     messageContent = `${content}<br><img src="data:${uploadType};base64,${uploadBase64}" alt="Uploaded Image">`;
                 } else {
@@ -1720,6 +1750,9 @@ ${code}
                 const fileType = uploadType ? uploadType.split('/').pop() : 'unknown';
                 messageContent = `${content || ''}<br><div class="file-attachment"><i class="fas fa-file"></i> Uploaded ${fileType} file</div>`;
             }
+        } else if (role === 'bot' && content && content.includes('Generated') && content.includes('image')) {
+            // Handle case where bot message indicates an image was generated but the image data isn't available
+            messageContent = `<p>${content}</p><p class="missing-image-note">Image not available</p>`;
         }
         
         messageElement.innerHTML = `
@@ -1737,6 +1770,37 @@ ${code}
         addCopyButtonListeners();
         addDownloadButtonListeners();
         addRunCodeButtonListeners();
+        
+        // Set up carousel controls if this is a multi-image message
+        const carousel = messageElement.querySelector('.image-carousel');
+        if (carousel) {
+            const prevBtn = messageElement.querySelector('.prev-btn');
+            const nextBtn = messageElement.querySelector('.next-btn');
+            
+            if (prevBtn && !prevBtn.hasListener) {
+                prevBtn.addEventListener('click', () => {
+                    carousel.scrollBy({ left: -carousel.clientWidth, behavior: 'smooth' });
+                });
+                prevBtn.hasListener = true;
+            }
+            
+            if (nextBtn && !nextBtn.hasListener) {
+                nextBtn.addEventListener('click', () => {
+                    carousel.scrollBy({ left: carousel.clientWidth, behavior: 'smooth' });
+                });
+                nextBtn.hasListener = true;
+            }
+        }
+        
+        // Setup fullscreen for images
+        const images = messageElement.querySelectorAll('.fullscreen-image');
+        images.forEach(img => {
+            img.addEventListener('click', function() {
+                if (window.openImageFullscreen) {
+                    window.openImageFullscreen(this);
+                }
+            });
+        });
         
         // Add long-press functionality for context menu on messages
         if (role === 'bot') {
@@ -2567,12 +2631,7 @@ ${code}
     
     // Function to delete a chat
     function deleteChat(chatId) {
-        // Ask for confirmation
-        if (!confirm('Are you sure you want to delete this chat?')) {
-            return;
-        }
-        
-        // Delete the chat data
+        // Delete the chat data without confirmation
         delete conversations[chatId];
         
         // Clear all memories associated with this chat
@@ -2626,11 +2685,22 @@ ${code}
         });
         
         // Add bot response to conversation
-        conversations[currentChatId].messages.push({
-            role: 'bot',
-            content: botResponse,
-            timestamp: Date.now()
-        });
+        // For image generation, store the image data with the bot message too
+        if (uploadType === 'image_generation') {
+            conversations[currentChatId].messages.push({
+                role: 'bot',
+                content: botResponse,
+                image: uploadBase64, // Store image data with bot message
+                fileType: uploadType, // Store the type
+                timestamp: Date.now()
+            });
+        } else {
+            conversations[currentChatId].messages.push({
+                role: 'bot',
+                content: botResponse,
+                timestamp: Date.now()
+            });
+        }
         
         // Save to local storage
         saveConversations();
