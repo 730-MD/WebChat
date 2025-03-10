@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Assistant</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/additional.css">
+    <link rel="stylesheet" href="css/model-debug.css">
+    <link rel="stylesheet" href="css/fixes.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <div class="logo">
+                <h1>AI Chat</h1>
+            </div>
+            <button class="new-chat-btn">
+                <i class="fas fa-plus"></i> New Chat
+            </button>
+            <div class="model-selector">
+                <label for="model">Model:</label>
+                <select id="model">
+                    <option value="">-- Select a model --</option>
+                    <option value="openai">openai</option>
+                    <option value="openai-large">openai-large</option>
+                    <option value="openai-reasoning">openai-reasoning</option>
+                    <option value="qwen-coder">qwen-coder</option>
+                    <option value="llama">llama</option>
+                    <option value="mistral">mistral</option>
+                    <option value="unity">unity</option>
+                    <option value="midijourney">midijourney</option>
+                    <option value="rtist">rtist</option>
+                    <option value="searchgpt">searchgpt</option>
+                    <option value="evil">evil</option>
+                    <option value="deepseek">deepseek</option>
+                    <option value="claude">claude</option>
+                    <option value="deepseek-r1">deepseek-r1</option>
+                    <option value="deepseek-reasoner">deepseek-reasoner</option>
+                    <option value="llamalight">llamalight</option>
+                    <option value="llamaguard">llamaguard</option>
+                    <option value="hormoz">hormoz</option>
+                    <option value="hypnosis-tracy">hypnosis-tracy</option>
+                    <option value="sur">sur</option>
+                    <option value="sur-mistral">sur-mistral</option>
+                    <option value="llama-scaleway">llama-scaleway</option>
+                    <option value="phi">phi</option>
+                </select>
+            </div>
+            <div class="chat-history" id="chat-history">
+                <!-- Chat history items will be added here -->
+            </div>
+        </div>
+        
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+        
+        <div class="main-content">
+            <button class="menu-toggle" id="menu-toggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="chat-header">
+                <h1>AI Chat</h1>
+            </div>
+            <div class="chat-area" id="chat-area">
+                <div class="welcome-message">
+                    <h2>Welcome to AI Chat</h2>
+                    <p>Select a model and start chatting!</p>
+                    
+                    <div class="welcome-actions">
+                        <select id="model-mobile" class="model-select-mobile">
+                            <option value="">-- Select a model --</option>
+                            <!-- Options will be populated from JS -->
+                        </select>
+                        <button id="start-chat-btn" class="start-chat-btn">Start Chatting</button>
+                    </div>
+                    <div class="model-selection-help">
+                        <p>Please select a model from the dropdown above to begin</p>
+                    </div>
+                    <div id="model-debug" style="display: none;" class="model-debug"></div>
+                </div>
+                <!-- Messages will be added here -->
+            </div>
+            
+            <div class="input-area">
+                <div class="input-container">
+                    <textarea id="user-input" placeholder="Send a message..." rows="1"></textarea>
+                    <div class="buttons">
+                        <label for="file-upload" class="upload-btn" title="Upload File">
+                            <i class="fas fa-file-upload"></i>
+                        </label>
+                        <input id="file-upload" type="file" style="display: none;">
+                        <button id="search-btn" title="Web Search" class="search-btn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <button id="regenerate-btn" title="Regenerate Response" disabled>
+                            <i class="fas fa-redo-alt"></i>
+                        </button>
+                        <button id="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="upload-preview" id="upload-preview" style="display: none;">
+                    <div id="preview-container">
+                        <img id="preview-image" src="" alt="Upload Preview" style="display: none;">
+                        <div id="file-info" style="display: none;">
+                            <i class="fas fa-file"></i>
+                            <span id="file-name"></span>
+                            <span id="file-size"></span>
+                        </div>
+                    </div>
+                    <button id="remove-upload" title="Remove Upload">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="code-execution-area" style="display: none;">
+                    <div class="code-execution-header">
+                        <span>Code Execution</span>
+                        <button id="close-execution" title="Close Code Execution">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="code-output"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <!-- Add additional languages for highlight.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/cpp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/ruby.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/rust.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/php.min.js"></script>
+    <!-- Add pyodide for Python execution -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+    <!-- Add custom scripts -->
+    <script src="js/imageGeneration.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/ui-fixes.js"></script>
+</body>
+</html>
