@@ -20,6 +20,28 @@
     -webkit-overflow-scrolling: touch; /* Improve scrolling on iOS */
 }
 
+/* Fix for lists in message content to prevent overflow */
+.message-content ol,
+.message-content ul {
+    padding-left: 20px; /* Reduce default padding */
+    margin-left: 0;
+    box-sizing: border-box;
+    max-width: 100%;
+    width: 100%; /* Ensure lists take full width of container */
+}
+
+.message-content li {
+    margin-bottom: 5px;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    margin-right: 8px; /* Ensure text doesn't touch the right edge */
+}
+
+/* Fix for list item markers to ensure they're visible and properly aligned */
+.message-content ol {
+    list-style-position: inside; /* Keep markers inside the container */
+}
+
 /* Additional mobile fixes */
 @media (max-width: 768px) {
     .input-area {
@@ -87,6 +109,12 @@
         border-radius: 50%;
         background-color: var(--primary-accent);
         opacity: 0.5;
+    }
+    
+    /* Adjust list styling on mobile for better readability */
+    .message-content ol,
+    .message-content ul {
+        padding-left: 15px;
     }
 }
 
