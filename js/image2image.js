@@ -55,8 +55,7 @@
                 "private": true,
                 "nofeed": true,
                 "token": "gacha11211",
-                "referrer": "gacha11211",
-                "max_tokens": 1000
+                "referrer": "gacha11211"
             };
             
             // Send request to get image description
