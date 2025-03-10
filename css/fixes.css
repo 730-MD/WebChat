@@ -17,10 +17,27 @@
         right: 0;
         padding: 10px;
         box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+        height: auto;
     }
     
     .chat-area {
-        padding-bottom: 80px; /* Add padding to ensure content isn't hidden behind input */
+        padding-bottom: 140px; /* Increased padding to ensure content isn't hidden behind input */
+        margin-bottom: 0;
+    }
+    
+    /* Fix upload preview spacing */
+    .upload-preview {
+        margin-bottom: 0;
+        padding: 10px;
+        background-color: rgba(45, 45, 45, 0.8);
+    }
+    
+    /* Ensure the content area is adjusted for keyboard */
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        position: relative;
     }
     
     /* Make the menu toggle more visible */
