@@ -1,0 +1,24 @@
+    function deleteChat(chatId) {
+        // Ask for confirmation
+        if (!confirm('Are you sure you want to delete this chat?')) {
+            return;
+        }
+        
+        // Delete the chat data
+        delete conversations[chatId];
+        
+        // Save to localStorage
+        saveConversationsToLocalStorage();
+        
+        // Update the sidebar
+        updateChatHistorySidebar();
+        
+        // If the deleted chat was the active one, start a new chat
+        if (chatId === currentChatId) {
+            // Clear the chat area and show welcome message
+            chatArea.innerHTML = '';
+            addWelcomeMessage();
+            currentChatId = null;
+            modelSelect.value = '';
+        }
+    }

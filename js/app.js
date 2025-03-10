@@ -2575,6 +2575,12 @@ ${code}
         // Delete the chat data
         delete conversations[chatId];
         
+        // Clear all memories associated with this chat
+        if (window.localStorage.getItem(`chat_memories_${chatId}`)) {
+            window.localStorage.removeItem(`chat_memories_${chatId}`);
+            console.log(`Removed memories for chat ${chatId}`);
+        }
+        
         // Save to localStorage
         saveConversationsToLocalStorage();
         
