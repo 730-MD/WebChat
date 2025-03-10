@@ -127,6 +127,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
+            
+            // Ensure we don't lose chat history when changing models
+            if (conversations[currentChatId] && conversations[currentChatId].messages.length > 0) {
+                // Make sure welcome message is hidden if we have existing messages
+                const welcomeMessage = document.querySelector('.welcome-message');
+                if (welcomeMessage) {
+                    welcomeMessage.style.display = 'none';
+                }
+            }
         }
     });
     
@@ -146,6 +155,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     modelIndicator.className = 'model-indicator';
                     modelIndicator.innerHTML = `Model "<strong>${modelSelectMobile.options[modelSelectMobile.selectedIndex].text}</strong>" is selected`;
                     welcomeMessage.appendChild(modelIndicator);
+                }
+            }
+            
+            // Ensure we don't lose chat history when changing models
+            if (conversations[currentChatId] && conversations[currentChatId].messages.length > 0) {
+                // Make sure welcome message is hidden if we have existing messages
+                const welcomeMessage = document.querySelector('.welcome-message');
+                if (welcomeMessage) {
+                    welcomeMessage.style.display = 'none';
+                }
+                
+                // If chat area is empty but we have messages, display them again
+                if (chatArea.querySelectorAll('.message').length === 0) {
+                    const chat = conversations[currentChatId];
+                    chat.messages.forEach(msg => {
+                        const fileType = msg.fileType || (msg.image ? 'image/jpeg' : null);
+                        addMessageToChat(msg.role, msg.content, msg.image, fileType);
+                    });
                 }
             }
         }
@@ -860,49 +887,176 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Handle file/image processing
+        let processedQuery = query;
+        let imageDescription = null;
+        let fileContent = null;
+
+        // If there's an upload, process it with openai-large first if we're not already using it
+        if (uploadBase64 && selectedModel !== 'openai-large') {
+            try {
+                if (thinkingElement) {
+                    const thinkingContent = thinkingElement.querySelector('.thinking span');
+                    if (thinkingContent) {
+                        thinkingContent.textContent = 'Processing your upload...';
+                    }
+                }
+
+                if (uploadType && uploadType.startsWith('image/')) {
+                    // Process image with openai-large first
+                    const imageProcessingPayload = {
+                        "model": "openai-large",
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": "Describe this image in detail but concisely."
+                            },
+                            {
+                                "role": "user",
+                                "content": [
+                                    { "type": "text", "text": "What's in this image? Provide a clear description." },
+                                    { "type": "image_url", "image_url": { "url": `data:${uploadType};base64,${uploadBase64}` } }
+                                ]
+                            }
+                        ],
+                        "temperature": 0.7,
+                        "stream": false,
+                        "private": true,
+                        "nofeed": true,
+                        "token": "gacha11211",
+                        "referrer": "gacha11211"
+                    };
+
+                    const imageProcessingResponse = await fetch("https://text.pollinations.ai/openai", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(imageProcessingPayload)
+                    });
+
+                    if (imageProcessingResponse.ok) {
+                        const imageProcessingResult = await imageProcessingResponse.json();
+                        imageDescription = imageProcessingResult.choices[0].message.content;
+                        processedQuery = `${query || "What's in this image?"}\n\nImage description: ${imageDescription}`;
+                    }
+                } else if (uploadType) {
+                    // Process file with openai-large first
+                    let fileContentText = "";
+                    if (uploadType === 'application/pdf') {
+                        fileContentText = "PDF file (base64 encoded)";
+                    } else if (uploadType === 'text/plain' || 
+                              uploadType === 'text/javascript' || 
+                              uploadType === 'text/html' || 
+                              uploadType === 'text/css' ||
+                              uploadType === 'application/json') {
+                        fileContentText = atob(uploadBase64);
+                    }
+
+                    const fileProcessingPayload = {
+                        "model": "openai-large",
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": "Extract and summarize key information from this file."
+                            },
+                            {
+                                "role": "user",
+                                "content": `Please analyze this file content and provide a summary:\n\n${fileContentText}`
+                            }
+                        ],
+                        "temperature": 0.7,
+                        "stream": false,
+                        "private": true,
+                        "nofeed": true,
+                        "token": "gacha11211",
+                        "referrer": "gacha11211"
+                    };
+
+                    const fileProcessingResponse = await fetch("https://text.pollinations.ai/openai", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(fileProcessingPayload)
+                    });
+
+                    if (fileProcessingResponse.ok) {
+                        const fileProcessingResult = await fileProcessingResponse.json();
+                        fileContent = fileProcessingResult.choices[0].message.content;
+                        processedQuery = `${query || "I'm uploading a file."}\n\nFile content analysis: ${fileContent}`;
+                    }
+                }
+
+                // Update thinking indicator
+                if (thinkingElement) {
+                    const thinkingContent = thinkingElement.querySelector('.thinking span');
+                    if (thinkingContent) {
+                        thinkingContent.textContent = 'Getting response...';
+                    }
+                }
+            } catch (error) {
+                console.error("Error preprocessing upload:", error);
+                // Continue with original query if preprocessing fails
+            }
+        }
+
         // Add current query with file if provided
         if (uploadBase64) {
             if (uploadType && uploadType.startsWith('image/')) {
-                // Handle image upload
-                messages.push({
-                    "role": "user",
-                    "content": [
-                        { "type": "text", "text": query || "What's in this image?" },
-                        { "type": "image_url", "image_url": { "url": `data:${uploadType};base64,${uploadBase64}` } }
-                    ]
-                });
-            } else {
-                // For non-image files, convert base64 to text if possible
-                try {
-                    if (uploadType === 'application/pdf') {
-                        const fileContent = "This is a PDF file that has been converted to base64. The user would like you to analyze or extract information from it.";
-                        messages.push({
-                            "role": "user",
-                            "content": `${query || "I'm uploading a PDF file."}\n\nFile content (base64 encoded PDF): [Base64 content too large to display]`
-                        });
-                    } else if (uploadType === 'text/plain' || 
-                             uploadType === 'text/javascript' || 
-                             uploadType === 'text/html' || 
-                             uploadType === 'text/css' ||
-                             uploadType === 'application/json') {
-                        const text = atob(uploadBase64);
-                        messages.push({
-                            "role": "user",
-                            "content": `${query || "I'm uploading a file."}\n\nFile content:\n\`\`\`\n${text}\n\`\`\``
-                        });
-                    } else {
-                        // Default for other file types
-                        messages.push({
-                            "role": "user",
-                            "content": `${query || "I'm uploading a file."}\n\nFile of type ${uploadType} uploaded (base64 encoded).`
-                        });
-                    }
-                } catch (e) {
-                    console.error("Error processing file:", e);
+                if (selectedModel === 'openai-large') {
+                    // For openai-large, send the image directly
                     messages.push({
                         "role": "user",
-                        "content": `${query || "I'm uploading a file."}\n\nFile of type ${uploadType} uploaded, but could not be processed.`
+                        "content": [
+                            { "type": "text", "text": query || "What's in this image?" },
+                            { "type": "image_url", "image_url": { "url": `data:${uploadType};base64,${uploadBase64}` } }
+                        ]
                     });
+                } else {
+                    // For other models, send the processed query with image description
+                    messages.push({
+                        "role": "user",
+                        "content": processedQuery
+                    });
+                }
+            } else {
+                // For non-image files
+                if (fileContent) {
+                    // If we have processed file content, use it
+                    messages.push({
+                        "role": "user",
+                        "content": processedQuery
+                    });
+                } else {
+                    // Otherwise use a basic message
+                    try {
+                        if (uploadType === 'application/pdf') {
+                            const fileContent = "This is a PDF file that has been converted to base64. The user would like you to analyze or extract information from it.";
+                            messages.push({
+                                "role": "user",
+                                "content": `${query || "I'm uploading a PDF file."}\n\nFile content (base64 encoded PDF): [Base64 content too large to display]`
+                            });
+                        } else if (uploadType === 'text/plain' || 
+                                 uploadType === 'text/javascript' || 
+                                 uploadType === 'text/html' || 
+                                 uploadType === 'text/css' ||
+                                 uploadType === 'application/json') {
+                            const text = atob(uploadBase64);
+                            messages.push({
+                                "role": "user",
+                                "content": `${query || "I'm uploading a file."}\n\nFile content:\n\`\`\`\n${text}\n\`\`\``
+                            });
+                        } else {
+                            // Default for other file types
+                            messages.push({
+                                "role": "user",
+                                "content": `${query || "I'm uploading a file."}\n\nFile of type ${uploadType} uploaded (base64 encoded).`
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Error processing file:", e);
+                        messages.push({
+                            "role": "user",
+                            "content": `${query || "I'm uploading a file."}\n\nFile of type ${uploadType} uploaded, but could not be processed.`
+                        });
+                    }
                 }
             }
         } else {
@@ -1422,8 +1576,12 @@ ${code}
         // If there's an upload, add it to the message
         if (uploadBase64) {
             if (uploadType && uploadType.startsWith('image/')) {
-                // If it's an image, display it
-                messageContent = `${content || ''}<br><img src="data:${uploadType};base64,${uploadBase64}" alt="Uploaded Image">`;
+                // If it's an image, display it - don't add text above the image if content is empty
+                if (content && content.trim() !== '') {
+                    messageContent = `${content}<br><img src="data:${uploadType};base64,${uploadBase64}" alt="Uploaded Image">`;
+                } else {
+                    messageContent = `<img src="data:${uploadType};base64,${uploadBase64}" alt="Uploaded Image">`;
+                }
             } else {
                 // For other file types, show a note but don't embed the content
                 const fileType = uploadType ? uploadType.split('/').pop() : 'unknown';
