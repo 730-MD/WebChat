@@ -70,13 +70,36 @@
 /* Fix for the input area to ensure it's always visible */
 .input-area {
     background-color: var(--primary-bg);
-    position: relative;
+    position: sticky;
     z-index: 15;
     border-top: 1px solid var(--border-color);
     bottom: 0;
     left: 0;
     right: 0;
     width: 100%;
+    padding: 15px 20px;
+}
+
+.input-container {
+    display: flex;
+    align-items: flex-end;
+    background-color: var(--secondary-bg);
+    border-radius: 10px;
+    padding: 10px 15px;
+    gap: 10px;
+}
+
+#user-input {
+    flex-grow: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text-color);
+    resize: none;
+    padding: 5px 0;
+    max-height: 150px;
+    font-size: 1rem;
+    font-family: inherit;
 }
 
 /* Ensure chat area has enough space for input area */
@@ -119,6 +142,7 @@
         padding: 10px;
         box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
         height: auto;
+        z-index: 100;
     }
     
     .chat-area {
