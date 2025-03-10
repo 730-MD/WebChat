@@ -6,6 +6,18 @@
     position: relative;
     z-index: 15;
     border-top: 1px solid var(--border-color);
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+}
+
+/* Ensure chat area has enough space for input area */
+.chat-area {
+    padding-bottom: 100px; /* Base padding to ensure content isn't hidden */
+    margin-bottom: 15px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* Improve scrolling on iOS */
 }
 
 /* Additional mobile fixes */
@@ -21,8 +33,9 @@
     }
     
     .chat-area {
-        padding-bottom: 140px; /* Increased padding to ensure content isn't hidden behind input */
+        padding-bottom: 200px !important; /* Increased padding for mobile to ensure content isn't hidden */
         margin-bottom: 0;
+        -webkit-overflow-scrolling: touch; /* Improve scrolling on iOS */
     }
     
     /* Fix upload preview spacing */
@@ -38,6 +51,7 @@
         flex-direction: column;
         height: 100vh;
         position: relative;
+        overflow: hidden;
     }
     
     /* Make the menu toggle more visible */
@@ -85,4 +99,29 @@
 
 .tapped {
     animation: tapFeedback 0.3s ease;
+}
+
+/* Ensure messages are always visible */
+.message {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Force proper layout even when virtual keyboard is active */
+@media screen and (max-height: 450px) {
+    .chat-area {
+        height: calc(100vh - 120px);
+        padding-bottom: 120px !important;
+    }
+    
+    .input-area {
+        position: fixed;
+    }
+}
+
+/* Fix iOS Safari issues */
+@supports (-webkit-touch-callout: none) {
+    .chat-area {
+        padding-bottom: 220px !important;
+    }
 }

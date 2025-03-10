@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastQuery = null;
     let lastUpload = null; // Can be image or other file
     let lastUploadType = null; // Type of upload (image, pdf, etc)
+    let lastFileName = null; // To store the original uploaded file name
     let isWaitingForResponse = false;
     let currentReader = null;
     let isMobile = window.innerWidth <= 768;
@@ -829,8 +830,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Prepare messages array with system prompt (except for models that don't support system role)
         const messages = [];
         
-        // Some models like openai-reasoning don't support system role
+        // Some models like openai-reasoning don't support system role or streaming
         const noSystemRoleModels = ['openai-reasoning'];
+        // Models that don't support streaming
+        const noStreamingModels = ['openai-reasoning'];
         
         if (!noSystemRoleModels.includes(selectedModel)) {
             messages.push({ 
@@ -892,8 +895,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let imageDescription = null;
         let fileContent = null;
 
-        // If there's an upload, process it with openai-large first if we're not already using it
-        if (uploadBase64 && selectedModel !== 'openai-large') {
+        // If there's an upload, process it
+        if (uploadBase64) {
             try {
                 if (thinkingElement) {
                     const thinkingContent = thinkingElement.querySelector('.thinking span');
@@ -902,85 +905,103 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
+                // Access the file name that was stored during upload if available
+                const actualFileName = lastFileName || "uploaded file";
+
                 if (uploadType && uploadType.startsWith('image/')) {
-                    // Process image with openai-large first
-                    const imageProcessingPayload = {
-                        "model": "openai-large",
-                        "messages": [
-                            {
-                                "role": "system",
-                                "content": "Describe this image in detail but concisely."
-                            },
-                            {
-                                "role": "user",
-                                "content": [
-                                    { "type": "text", "text": "What's in this image? Provide a clear description." },
-                                    { "type": "image_url", "image_url": { "url": `data:${uploadType};base64,${uploadBase64}` } }
-                                ]
-                            }
-                        ],
-                        "temperature": 0.7,
-                        "stream": false,
-                        "private": true,
-                        "nofeed": true,
-                        "token": "gacha11211",
-                        "referrer": "gacha11211"
-                    };
+                    // For images, we can use openai-large to get a description if not already using it
+                    if (selectedModel !== 'openai-large') {
+                        // Process image with openai-large first
+                        const imageProcessingPayload = {
+                            "model": "openai-large",
+                            "messages": [
+                                {
+                                    "role": "system",
+                                    "content": "Describe this image in detail but concisely."
+                                },
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        { "type": "text", "text": "What's in this image? Provide a clear description." },
+                                        { "type": "image_url", "image_url": { "url": `data:${uploadType};base64,${uploadBase64}` } }
+                                    ]
+                                }
+                            ],
+                            "temperature": 0.7,
+                            "stream": false,
+                            "private": true,
+                            "nofeed": true,
+                            "token": "gacha11211",
+                            "referrer": "gacha11211"
+                        };
 
-                    const imageProcessingResponse = await fetch("https://text.pollinations.ai/openai", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(imageProcessingPayload)
-                    });
+                        const imageProcessingResponse = await fetch("https://text.pollinations.ai/openai", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(imageProcessingPayload)
+                        });
 
-                    if (imageProcessingResponse.ok) {
-                        const imageProcessingResult = await imageProcessingResponse.json();
-                        imageDescription = imageProcessingResult.choices[0].message.content;
-                        processedQuery = `${query || "What's in this image?"}\n\nImage description: ${imageDescription}`;
+                        if (imageProcessingResponse.ok) {
+                            const imageProcessingResult = await imageProcessingResponse.json();
+                            imageDescription = imageProcessingResult.choices[0].message.content;
+                            processedQuery = `${query || "What's in this image?"}\n\nImage description: ${imageDescription}`;
+                        }
                     }
                 } else if (uploadType) {
-                    // Process file with openai-large first
+                    // For non-image files with all models
                     let fileContentText = "";
+                    let fileTypeDisplay = uploadType.split('/').pop();
+                    
+                    // Try to extract content based on file type
                     if (uploadType === 'application/pdf') {
                         fileContentText = "PDF file (base64 encoded)";
                     } else if (uploadType === 'text/plain' || 
                               uploadType === 'text/javascript' || 
                               uploadType === 'text/html' || 
                               uploadType === 'text/css' ||
-                              uploadType === 'application/json') {
-                        fileContentText = atob(uploadBase64);
+                              uploadType === 'application/json' ||
+                              uploadType === 'text/x-python') {
+                        try {
+                            fileContentText = atob(uploadBase64);
+                        } catch (e) {
+                            fileContentText = "[File content could not be decoded]";
+                            console.error("Error decoding file:", e);
+                        }
                     }
+                    
+                    // Check if we need to process with openai-large first
+                    if (selectedModel !== 'openai-large' && fileContentText) {
+                        const fileProcessingPayload = {
+                            "model": "openai-large",
+                            "messages": [
+                                {
+                                    "role": "system",
+                                    "content": "Extract and summarize key information from this file."
+                                },
+                                {
+                                    "role": "user",
+                                    "content": `Please analyze this file content (${actualFileName}) and provide a summary:\n\n${fileContentText}`
+                                }
+                            ],
+                            "temperature": 0.7,
+                            "stream": false,
+                            "private": true,
+                            "nofeed": true,
+                            "token": "gacha11211",
+                            "referrer": "gacha11211"
+                        };
 
-                    const fileProcessingPayload = {
-                        "model": "openai-large",
-                        "messages": [
-                            {
-                                "role": "system",
-                                "content": "Extract and summarize key information from this file."
-                            },
-                            {
-                                "role": "user",
-                                "content": `Please analyze this file content and provide a summary:\n\n${fileContentText}`
-                            }
-                        ],
-                        "temperature": 0.7,
-                        "stream": false,
-                        "private": true,
-                        "nofeed": true,
-                        "token": "gacha11211",
-                        "referrer": "gacha11211"
-                    };
+                        const fileProcessingResponse = await fetch("https://text.pollinations.ai/openai", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(fileProcessingPayload)
+                        });
 
-                    const fileProcessingResponse = await fetch("https://text.pollinations.ai/openai", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(fileProcessingPayload)
-                    });
-
-                    if (fileProcessingResponse.ok) {
-                        const fileProcessingResult = await fileProcessingResponse.json();
-                        fileContent = fileProcessingResult.choices[0].message.content;
-                        processedQuery = `${query || "I'm uploading a file."}\n\nFile content analysis: ${fileContent}`;
+                        if (fileProcessingResponse.ok) {
+                            const fileProcessingResult = await fileProcessingResponse.json();
+                            fileContent = fileProcessingResult.choices[0].message.content;
+                            processedQuery = `${query || `I'm uploading a file: ${actualFileName}.`}\n\nFile content analysis: ${fileContent}`;
+                        }
                     }
                 }
 
@@ -999,13 +1020,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Add current query with file if provided
         if (uploadBase64) {
+            // Get the actual filename if available
+            const fileName = lastFileName || "uploaded file";
+            
             if (uploadType && uploadType.startsWith('image/')) {
                 if (selectedModel === 'openai-large') {
                     // For openai-large, send the image directly
                     messages.push({
                         "role": "user",
                         "content": [
-                            { "type": "text", "text": query || "What's in this image?" },
+                            { "type": "text", "text": query || `What's in this image? (${fileName})` },
                             { "type": "image_url", "image_url": { "url": `data:${uploadType};base64,${uploadBase64}` } }
                         ]
                     });
@@ -1013,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // For other models, send the processed query with image description
                     messages.push({
                         "role": "user",
-                        "content": processedQuery
+                        "content": processedQuery || `${query || "What's in this image?"} (Image filename: ${fileName})`
                     });
                 }
             } else {
@@ -1022,39 +1046,47 @@ document.addEventListener('DOMContentLoaded', () => {
                     // If we have processed file content, use it
                     messages.push({
                         "role": "user",
-                        "content": processedQuery
+                        "content": processedQuery || `${query || `I'm uploading a file called ${fileName}.`}`
                     });
                 } else {
                     // Otherwise use a basic message
                     try {
                         if (uploadType === 'application/pdf') {
-                            const fileContent = "This is a PDF file that has been converted to base64. The user would like you to analyze or extract information from it.";
                             messages.push({
                                 "role": "user",
-                                "content": `${query || "I'm uploading a PDF file."}\n\nFile content (base64 encoded PDF): [Base64 content too large to display]`
+                                "content": `${query || `I'm uploading a PDF file named "${fileName}".`}\n\nFile content (base64 encoded PDF): [Base64 content too large to display]`
                             });
                         } else if (uploadType === 'text/plain' || 
                                  uploadType === 'text/javascript' || 
                                  uploadType === 'text/html' || 
                                  uploadType === 'text/css' ||
-                                 uploadType === 'application/json') {
-                            const text = atob(uploadBase64);
-                            messages.push({
-                                "role": "user",
-                                "content": `${query || "I'm uploading a file."}\n\nFile content:\n\`\`\`\n${text}\n\`\`\``
-                            });
+                                 uploadType === 'application/json' ||
+                                 uploadType === 'text/x-python') {
+                            try {
+                                const text = atob(uploadBase64);
+                                messages.push({
+                                    "role": "user",
+                                    "content": `${query || `I'm uploading a file named "${fileName}".`}\n\nFile content:\n\`\`\`\n${text}\n\`\`\``
+                                });
+                            } catch (e) {
+                                console.error("Error decoding file:", e);
+                                messages.push({
+                                    "role": "user",
+                                    "content": `${query || `I'm uploading a file named "${fileName}".`}\n\nFile content could not be decoded.`
+                                });
+                            }
                         } else {
                             // Default for other file types
                             messages.push({
                                 "role": "user",
-                                "content": `${query || "I'm uploading a file."}\n\nFile of type ${uploadType} uploaded (base64 encoded).`
+                                "content": `${query || `I'm uploading a file named "${fileName}".`}\n\nFile of type ${uploadType} uploaded (base64 encoded).`
                             });
                         }
                     } catch (e) {
                         console.error("Error processing file:", e);
                         messages.push({
                             "role": "user",
-                            "content": `${query || "I'm uploading a file."}\n\nFile of type ${uploadType} uploaded, but could not be processed.`
+                            "content": `${query || `I'm uploading a file named "${fileName}".`}\n\nFile of type ${uploadType} uploaded, but could not be processed.`
                         });
                     }
                 }
@@ -1074,7 +1106,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "temperature": 1.0,  // Using default temperature as some models require this
             "top_p": 1.0,
             "seed": randomSeed,
-            "stream": true,
+            "stream": !noStreamingModels.includes(selectedModel), // Disable streaming for incompatible models
             "private": true,
             "nofeed": true,
             "token": "gacha11211",  // Updated token
@@ -1118,130 +1150,178 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(`API Error (${response.status}): ${errorText}`);
                 }
 
-                // Process the streaming response
-                const reader = response.body.getReader();
-                currentReader = reader;
-                
-                let botMessageElement = null;
-                let responseContent = '';
-                const decoder = new TextDecoder();
-                let openCodeBlocks = new Set(); // Track open code blocks
+                // Check if the response is streaming or not based on the payload setting
+                if (payload.stream) {
+                    // Process the streaming response
+                    const reader = response.body.getReader();
+                    currentReader = reader;
+                    
+                    let botMessageElement = null;
+                    let responseContent = '';
+                    const decoder = new TextDecoder();
+                    let openCodeBlocks = new Set(); // Track open code blocks
 
-                // Handle cancellation through pause button
-                const onPauseClick = async () => {
-                    if (currentReader) {
-                        try {
-                            await currentReader.cancel();
-                            console.log("Stream canceled by user");
-                            // Restore send button
-                            updateSendButtonForStreaming(false);
-                            isWaitingForResponse = false;
-                            currentReader = null;
-                        } catch (e) {
-                            console.error("Error canceling stream:", e);
+                    // Handle cancellation through pause button
+                    const onPauseClick = async () => {
+                        if (currentReader) {
+                            try {
+                                await currentReader.cancel();
+                                console.log("Stream canceled by user");
+                                // Restore send button
+                                updateSendButtonForStreaming(false);
+                                isWaitingForResponse = false;
+                                currentReader = null;
+                            } catch (e) {
+                                console.error("Error canceling stream:", e);
+                            }
                         }
-                    }
-                };
-                
-                // Attach event listener to pause button
-                sendBtn.addEventListener('click', onPauseClick);
+                    };
+                    
+                    // Attach event listener to pause button
+                    sendBtn.addEventListener('click', onPauseClick);
 
-                try {
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        
-                        const chunk = decoder.decode(value, { stream: true });
-                        const lines = chunk.split('\n').filter(line => line.trim() !== '');
-                        
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                const data = line.slice(6);
-                                
-                                if (data === '[DONE]') continue;
-                                
-                                try {
-                                    const parsedData = JSON.parse(data);
-                                    if (parsedData.choices && parsedData.choices[0].delta && parsedData.choices[0].delta.content) {
-                                        const content = parsedData.choices[0].delta.content;
-                                        responseContent += content;
-                                        
-                                        // Create bot message element if it doesn't exist
-                                        if (!botMessageElement) {
-                                            // Remove thinking indicator
-                                            removeBotThinkingIndicator();
+                    try {
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            
+                            const chunk = decoder.decode(value, { stream: true });
+                            const lines = chunk.split('\n').filter(line => line.trim() !== '');
+                            
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    const data = line.slice(6);
+                                    
+                                    if (data === '[DONE]') continue;
+                                    
+                                    try {
+                                        const parsedData = JSON.parse(data);
+                                        if (parsedData.choices && parsedData.choices[0].delta && parsedData.choices[0].delta.content) {
+                                            const content = parsedData.choices[0].delta.content;
+                                            responseContent += content;
                                             
-                                            // Add bot message
-                                            botMessageElement = document.createElement('div');
-                                            botMessageElement.className = 'message bot';
-                                            botMessageElement.innerHTML = `
-                                                <div class="message-avatar">AI</div>
-                                                <div class="message-content"></div>
-                                            `;
-                                            chatArea.appendChild(botMessageElement);
-                                        }
-                                        
-                                        // Before updating, capture any open code blocks
-                                        if (botMessageElement) {
-                                            const details = botMessageElement.querySelectorAll('details.code-details');
-                                            openCodeBlocks.clear();
-                                            details.forEach((detail, index) => {
-                                                if (detail.hasAttribute('open')) {
-                                                    openCodeBlocks.add(index);
+                                            // Create bot message element if it doesn't exist
+                                            if (!botMessageElement) {
+                                                // Remove thinking indicator
+                                                removeBotThinkingIndicator();
+                                                
+                                                // Add bot message
+                                                botMessageElement = document.createElement('div');
+                                                botMessageElement.className = 'message bot';
+                                                botMessageElement.innerHTML = `
+                                                    <div class="message-avatar">AI</div>
+                                                    <div class="message-content"></div>
+                                                `;
+                                                chatArea.appendChild(botMessageElement);
+                                            }
+                                            
+                                            // Before updating, capture any open code blocks
+                                            if (botMessageElement) {
+                                                const details = botMessageElement.querySelectorAll('details.code-details');
+                                                openCodeBlocks.clear();
+                                                details.forEach((detail, index) => {
+                                                    if (detail.hasAttribute('open')) {
+                                                        openCodeBlocks.add(index);
+                                                    }
+                                                });
+                                            }
+                                            
+                                            // Update content with markdown rendering
+                                            const messageContent = botMessageElement.querySelector('.message-content');
+                                            messageContent.innerHTML = formatMessage(responseContent);
+                                            
+                                            // Restore open state of code blocks
+                                            const updatedDetails = messageContent.querySelectorAll('details.code-details');
+                                            openCodeBlocks.forEach(index => {
+                                                if (index < updatedDetails.length) {
+                                                    updatedDetails[index].setAttribute('open', '');
                                                 }
                                             });
-                                        }
-                                        
-                                        // Update content with markdown rendering
-                                        const messageContent = botMessageElement.querySelector('.message-content');
-                                        messageContent.innerHTML = formatMessage(responseContent);
-                                        
-                                        // Restore open state of code blocks
-                                        const updatedDetails = messageContent.querySelectorAll('details.code-details');
-                                        openCodeBlocks.forEach(index => {
-                                            if (index < updatedDetails.length) {
-                                                updatedDetails[index].setAttribute('open', '');
+                                            
+                                            // Add event listeners to copy buttons
+                                            addCopyButtonListeners();
+                                            
+                                            // Add event listeners to download buttons
+                                            addDownloadButtonListeners();
+                                            
+                                            // Add event listeners to run code buttons
+                                            addRunCodeButtonListeners();
+                                            
+                                            // Only auto-scroll if user is already at the bottom
+                                            // User may want to read previous content while response is generating
+                                            const isScrolledToBottom = chatArea.scrollHeight - chatArea.clientHeight <= chatArea.scrollTop + 100;
+                                            if (isScrolledToBottom && !chatArea.hasAttribute('data-user-scrolled')) {
+                                                chatArea.scrollTop = chatArea.scrollHeight;
                                             }
-                                        });
-                                        
-                                        // Add event listeners to copy buttons
-                                        addCopyButtonListeners();
-                                        
-                                        // Add event listeners to download buttons
-                                        addDownloadButtonListeners();
-                                        
-                                        // Add event listeners to run code buttons
-                                        addRunCodeButtonListeners();
-                                        
-                                        // Only auto-scroll if user is already at the bottom
-                                        // User may want to read previous content while response is generating
-                                        const isScrolledToBottom = chatArea.scrollHeight - chatArea.clientHeight <= chatArea.scrollTop + 100;
-                                        if (isScrolledToBottom && !chatArea.hasAttribute('data-user-scrolled')) {
-                                            chatArea.scrollTop = chatArea.scrollHeight;
                                         }
+                                    } catch (e) {
+                                        console.error('Error parsing streaming data:', e, data);
                                     }
-                                } catch (e) {
-                                    console.error('Error parsing streaming data:', e, data);
                                 }
                             }
                         }
+                    } finally {
+                        // Always remove the pause button event listener when done
+                        sendBtn.removeEventListener('click', onPauseClick);
+                        // Restore send button
+                        updateSendButtonForStreaming(false);
                     }
-                } finally {
-                    // Always remove the pause button event listener when done
-                    sendBtn.removeEventListener('click', onPauseClick);
-                    // Restore send button
-                    updateSendButtonForStreaming(false);
+                } else {
+                    // Handle non-streaming response for models like openai-reasoning
+                    try {
+                        // Parse the JSON response
+                        const result = await response.json();
+                        
+                        // Extract the complete message
+                        let responseContent = '';
+                        if (result.choices && result.choices.length > 0 && result.choices[0].message) {
+                            responseContent = result.choices[0].message.content;
+                        }
+                        
+                        // Remove thinking indicator
+                        removeBotThinkingIndicator();
+                        
+                        // Create and add bot message with the complete response
+                        const botMessageElement = document.createElement('div');
+                        botMessageElement.className = 'message bot';
+                        botMessageElement.innerHTML = `
+                            <div class="message-avatar">AI</div>
+                            <div class="message-content">${formatMessage(responseContent)}</div>
+                        `;
+                        chatArea.appendChild(botMessageElement);
+                        
+                        // Add event listeners to buttons
+                        addCopyButtonListeners();
+                        addDownloadButtonListeners();
+                        addRunCodeButtonListeners();
+                        
+                        // Add long-press listeners
+                        const messageContent = botMessageElement.querySelector('.message-content');
+                        if (messageContent) {
+                            addLongPressListeners(messageContent);
+                        }
+                        
+                        // Scroll to bottom
+                        chatArea.scrollTop = chatArea.scrollHeight;
+                        
+                        // Restore send button
+                        updateSendButtonForStreaming(false);
+                        
+                        // Save conversation to history
+                        if (responseContent) {
+                            const queryToSave = displayQuery || query;
+                            saveConversation(queryToSave, responseContent, uploadBase64, uploadType);
+                            
+                            // Update the chat history sidebar
+                            updateChatHistorySidebar();
+                        }
+                    } catch (error) {
+                        console.error('Error processing non-streaming response:', error);
+                        throw error;
+                    }
                 }
                 
-                // Save conversation to history
-                if (responseContent) {
-                    // Use the display query (original query) for search results
-                    const queryToSave = displayQuery || query;
-                    saveConversation(queryToSave, responseContent, uploadBase64, uploadType);
-                    
-                    // Update the chat history sidebar
-                    updateChatHistorySidebar();
-                }
+                // Note: Conversation saving is now handled inside the streaming/non-streaming blocks
                 
                 // If we got here, the request was successful
                 break;
@@ -2071,7 +2151,10 @@ ${code}
         reader.onload = function(event) {
             const base64 = event.target.result.split(',')[1];
             lastUpload = base64;
+            
+            // Store the original file type and name for reference
             lastUploadType = file.type;
+            lastFileName = file.name;
             
             // Reset views
             previewImage.style.display = 'none';
@@ -2085,6 +2168,7 @@ ${code}
             // Otherwise show file info
             else {
                 const fileIcon = getFileIcon(file.type);
+                // Make sure file name is displayed properly
                 fileName.textContent = file.name;
                 fileSize.textContent = formatFileSize(file.size);
                 fileInfo.innerHTML = `<i class="${fileIcon}"></i><div><span id="file-name">${file.name}</span><span id="file-size">${formatFileSize(file.size)}</span></div>`;
@@ -2113,6 +2197,7 @@ ${code}
     function handleRemoveUpload() {
         lastUpload = null;
         lastUploadType = null;
+        lastFileName = null; // Reset filename as well
         uploadPreview.style.display = 'none';
         previewImage.style.display = 'none';
         fileInfo.style.display = 'none';
