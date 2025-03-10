@@ -653,8 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 "private": true,
                 "nofeed": true,
                 "token": "gacha11211",
-                "referrer": "gacha11211",
-                "max_tokens": 4000
+                "referrer": "gacha11211"
             };
             
             // Update thinking indicator
@@ -714,7 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let lastUploadData = null;
         let lastUploadType = null;
         
-        // Set the regenerating flag to true so we keep the same seed
+        // Set the regenerating flag to true (but we'll still use a new random seed)
         isRegenerating = true;
         
         // Check if the last user message had an upload
@@ -745,8 +744,8 @@ document.addEventListener('DOMContentLoaded', () => {
         searchBtn.disabled = true;
         
         try {
-            // For regeneration, we keep the lastSeed (don't reset it)
-            // and use the isRegenerating flag to control seed usage
+            // For regeneration, we always use a new random seed
+            // isRegenerating flag is only used for handling the message UI
             
             // For regeneration, we should include any uploads from the original message
             await getAIResponse(lastQuery, lastUploadData, lastUploadType, thinkingElement);
@@ -857,9 +856,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Change send button to pause button
         updateSendButtonForStreaming(true);
 
-        // Always generate a new random seed for unique responses, 
-        // unless we're specifically regenerating the last message
-        const randomSeed = isRegenerating ? lastSeed : Math.floor(Math.random() * 1000000);
+        // Always generate a new random seed for unique responses,
+        // even when regenerating the last message
+        const randomSeed = Math.floor(Math.random() * 1000000);
         lastSeed = randomSeed;
 
         // Get selected model
@@ -1201,8 +1200,7 @@ document.addEventListener('DOMContentLoaded', () => {
             "private": true,
             "nofeed": true,
             "token": "gacha11211",  // Updated token
-            "referrer": "gacha11211", // Updated referrer
-            "max_tokens": 4000
+            "referrer": "gacha11211" // Updated referrer
         };
         
         // Special handling for openai-reasoning model to avoid the system role issue
