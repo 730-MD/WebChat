@@ -478,6 +478,9 @@ async function handleImageEditing(message, imageBase64, thinkingElement) {
             }
         }
         
+        // Generate a random seed
+        const randomSeed = Math.floor(Math.random() * 1000000);
+        
         // Prepare the request to OpenAI large model
         const payload = {
             "model": "openai-large",
@@ -505,6 +508,7 @@ async function handleImageEditing(message, imageBase64, thinkingElement) {
             "temperature": 0.7,
             "top_p": 1.0,
             "stream": false,
+            "seed": randomSeed,
             "private": true,
             "nofeed": true,
             "token": "gacha11211",
