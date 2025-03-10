@@ -1034,10 +1034,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         ]
                     });
                 } else {
-                    // For other models, send the processed query with image description
+                    // For other models, only send the text content with description
+                    // Don't include image data in any format to avoid API errors
+                    let imageMessage = "";
+                    
+                    // If we have an image description from preprocessing, use it
+                    if (imageDescription) {
+                        imageMessage = `${query || "What's in this image?"}\n\nImage description: ${imageDescription}`;
+                    } else {
+                        imageMessage = `${query || "What's in this image?"} (Note: Image was uploaded but cannot be processed by this model)`;
+                    }
+                    
                     messages.push({
                         "role": "user",
-                        "content": processedQuery || `${query || "What's in this image?"} (Image filename: ${fileName})`
+                        "content": imageMessage
                     });
                 }
             } else {
