@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastUploadType = null; // Type of upload (image, pdf, etc)
     let lastFileName = null; // To store the original uploaded file name
     let isWaitingForResponse = false;
+    let isRegenerating = false; // Track when we're regenerating a response vs. new message
     let currentReader = null;
     let isMobile = window.innerWidth <= 768;
     let isSearchMode = false;
@@ -407,6 +408,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isWaitingForResponse) return;
         
+        // This is a new message, not regeneration
+        isRegenerating = false;
+        
         // Check if this is an image editing request
         if (lastMessageType === 'image' && lastGeneratedImageBase64 && 
            (message.toLowerCase().includes('edit') || 
@@ -710,6 +714,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let lastUploadData = null;
         let lastUploadType = null;
         
+        // Set the regenerating flag to true so we keep the same seed
+        isRegenerating = true;
+        
         // Check if the last user message had an upload
         if (currentChat && currentChat.messages.length >= 2) {
             const userMessages = currentChat.messages.filter(msg => msg.role === 'user');
@@ -738,11 +745,13 @@ document.addEventListener('DOMContentLoaded', () => {
         searchBtn.disabled = true;
         
         try {
-            lastSeed = null; // Reset seed to generate a new one
+            // For regeneration, we keep the lastSeed (don't reset it)
+            // and use the isRegenerating flag to control seed usage
             
             // For regeneration, we should include any uploads from the original message
             await getAIResponse(lastQuery, lastUploadData, lastUploadType, thinkingElement);
             
+            isRegenerating = false; // Reset flag after regeneration is done
             regenerateBtn.disabled = false;
             searchBtn.disabled = false;
         } catch (error) {
@@ -848,8 +857,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Change send button to pause button
         updateSendButtonForStreaming(true);
 
-        // Generate a random seed if not regenerating
-        const randomSeed = lastSeed || Math.floor(Math.random() * 1000000);
+        // Always generate a new random seed for unique responses, 
+        // unless we're specifically regenerating the last message
+        const randomSeed = isRegenerating ? lastSeed : Math.floor(Math.random() * 1000000);
         lastSeed = randomSeed;
 
         // Get selected model
