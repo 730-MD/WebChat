@@ -895,9 +895,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Add conversation history for memory if this is not the first message in the conversation
         if (conversations[currentChatId] && conversations[currentChatId].messages.length > 0) {
-            // Get last 10 messages (or fewer if there aren't that many)
-            // This helps maintain context without exceeding token limits
-            const contextMessages = conversations[currentChatId].messages.slice(-10);
+            // Get all messages from the current chat to ensure complete memory
+            // Previously this was limited to last 10 to avoid token limits, but per requirement we need to maintain full history
+            const contextMessages = conversations[currentChatId].messages;
             
             // Only add history if we're not in search mode or regenerating
             if (!displayQuery) {
