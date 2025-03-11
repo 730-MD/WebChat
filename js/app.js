@@ -122,6 +122,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (modelSelect.value) {
                 const welcomeMessage = document.querySelector('.welcome-message');
                 if (welcomeMessage && welcomeMessage.style.display !== 'none') {
+                    // Hide the model selection help message
+                    const helpMessage = welcomeMessage.querySelector('.model-selection-help');
+                    if (helpMessage) {
+                        helpMessage.style.display = 'none';
+                    }
+                    
                     const existingIndicator = welcomeMessage.querySelector('.model-indicator');
                     if (existingIndicator) {
                         existingIndicator.innerHTML = `Model "<strong>${modelSelect.options[modelSelect.selectedIndex].text}</strong>" is selected`;
@@ -167,6 +173,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modelSelectMobile.value) {
             const welcomeMessage = document.querySelector('.welcome-message');
             if (welcomeMessage && welcomeMessage.style.display !== 'none') {
+                // Hide the model selection help message
+                const helpMessage = welcomeMessage.querySelector('.model-selection-help');
+                if (helpMessage) {
+                    helpMessage.style.display = 'none';
+                }
+                
                 const existingIndicator = welcomeMessage.querySelector('.model-indicator');
                 if (existingIndicator) {
                     existingIndicator.innerHTML = `Model "<strong>${modelSelectMobile.options[modelSelectMobile.selectedIndex].text}</strong>" is selected`;
@@ -2454,6 +2466,12 @@ ${code}
             // Add indicator to show selected model
             const welcomeMessage = document.querySelector('.welcome-message');
             if (welcomeMessage) {
+                // Hide the model selection help message
+                const helpMessage = welcomeMessage.querySelector('.model-selection-help');
+                if (helpMessage) {
+                    helpMessage.style.display = 'none';
+                }
+                
                 const modelIndicator = document.createElement('div');
                 modelIndicator.className = 'model-indicator';
                 modelIndicator.innerHTML = `Model "<strong>${modelSelect.options[modelSelect.selectedIndex].text}</strong>" is selected`;
@@ -2645,6 +2663,12 @@ ${code}
                 // Add indicator to show selected model
                 const welcomeMessage = document.querySelector('.welcome-message');
                 if (welcomeMessage) {
+                    // Hide the model selection help message
+                    const helpMessage = welcomeMessage.querySelector('.model-selection-help');
+                    if (helpMessage) {
+                        helpMessage.style.display = 'none';
+                    }
+                    
                     const modelIndicator = document.createElement('div');
                     modelIndicator.className = 'model-indicator';
                     modelIndicator.innerHTML = `Model "<strong>${modelSelect.options[modelSelect.selectedIndex].text}</strong>" is selected`;
