@@ -333,11 +333,24 @@ document.addEventListener('DOMContentLoaded', () => {
             
             console.log("Using model:", selectedModel);
             
+            // Store the selected model in local storage for persistence
+            localStorage.setItem('selectedModel', selectedModel);
+            
             // Hide the welcome message
             const welcomeMessage = document.querySelector('.welcome-message');
             if (welcomeMessage) {
                 welcomeMessage.style.display = 'none';
             }
+
+            // Add a model indicator in the chat area
+            const modelIndicator = document.createElement('div');
+            modelIndicator.className = 'message system';
+            modelIndicator.innerHTML = `
+                <div class="message-content model-activated">
+                    <p>Chat started with model: <strong>${getModelDisplayName(selectedModel)}</strong></p>
+                </div>
+            `;
+            chatArea.appendChild(modelIndicator);
 
             // Show a subtle notification to indicate user can type
             const notification = document.createElement('div');
@@ -430,6 +443,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // This is a new message, not regeneration
         isRegenerating = false;
         
+        // Retrieve saved model if it exists
+        const savedModel = localStorage.getItem('selectedModel');
+        if (savedModel) {
+            modelSelect.value = savedModel;
+            if (modelSelectMobile) modelSelectMobile.value = savedModel;
+        }
+        
         // Check if this is an image editing request
         if (lastMessageType === 'image' && lastGeneratedImageBase64 && 
            (message.toLowerCase().includes('edit') || 
@@ -448,8 +468,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Check if a model is selected - use value from either selector
-        const selectedModel = modelSelect.value || (modelSelectMobile ? modelSelectMobile.value : '');
+        // Check if a model is selected - use value from either selector or localStorage
+        let selectedModel = modelSelect.value || (modelSelectMobile ? modelSelectMobile.value : '') || localStorage.getItem('selectedModel');
+        
+        console.log("Sending message with model:", selectedModel);
         
         if (!selectedModel) {
             console.log("No model selected. modelSelect:", modelSelect.value, "modelSelectMobile:", modelSelectMobile ? modelSelectMobile.value : "not available");
@@ -487,6 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 newModelSelectMobile.addEventListener('change', (e) => {
                     console.log("Mobile model changed to:", e.target.value);
                     modelSelect.value = e.target.value;
+                    localStorage.setItem('selectedModel', e.target.value);
                     
                     // Update or add model indicator
                     if (e.target.value) {
@@ -509,6 +532,10 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Please select a model first');
             return;
         }
+        
+        // Make sure the model is set in both selectors for consistency
+        modelSelect.value = selectedModel;
+        if (modelSelectMobile) modelSelectMobile.value = selectedModel;
 
         // Close sidebar on mobile when sending a message
         if (isMobile) {
@@ -1213,7 +1240,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Prepare the payload
+        // Prepare the payload - no max_tokens parameter as requested
         const payload = {
             "model": selectedModel,
             "messages": messages,
