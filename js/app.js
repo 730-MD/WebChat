@@ -243,6 +243,24 @@ document.addEventListener('DOMContentLoaded', () => {
         // Copy model options from sidebar to mobile selector
         syncModelOptions();
         
+        // Set up event listeners for model selectors to sync values
+        modelSelect.addEventListener('change', function() {
+            // Sync mobile model dropdown with sidebar model dropdown
+            modelSelectMobile.value = modelSelect.value;
+            // Enable/disable start button based on selection
+            startChatBtn.disabled = !modelSelect.value;
+        });
+
+        modelSelectMobile.addEventListener('change', function() {
+            // Sync sidebar model dropdown with mobile model dropdown
+            modelSelect.value = modelSelectMobile.value;
+            // Enable/disable start button based on selection
+            startChatBtn.disabled = !modelSelectMobile.value;
+        });
+
+        // Initial state of start button based on model selection
+        startChatBtn.disabled = !modelSelect.value && !modelSelectMobile.value;
+        
         // Log initial model values
         console.log("Initial app state - modelSelect:", modelSelect.value);
         console.log("Initial app state - modelSelectMobile:", modelSelectMobile ? modelSelectMobile.value : "not available");
@@ -304,11 +322,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 modelSelectMobile.appendChild(newOption);
             });
             
-            // If a model is selected in the sidebar, sync it to mobile
+            // Sync values between selectors if one has a value
             if (modelSelect.value) {
                 modelSelectMobile.value = modelSelect.value;
-                console.log("Synced model to mobile:", modelSelect.value);
+            } else if (modelSelectMobile.value) {
+                modelSelect.value = modelSelectMobile.value;
             }
+            
+            // Update the start button state
+            startChatBtn.disabled = !modelSelect.value && !modelSelectMobile.value;
         }
     }
     
