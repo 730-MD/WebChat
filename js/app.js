@@ -116,29 +116,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedChatId = currentChatId;
         
         if (modelSelectMobile) {
+            // Sync the model selection to the mobile dropdown
             modelSelectMobile.value = modelSelect.value;
             
-            // Update model indicator if visible
-            if (modelSelect.value) {
-                const welcomeMessage = document.querySelector('.welcome-message');
-                if (welcomeMessage && welcomeMessage.style.display !== 'none') {
-                    // Hide the model selection help message
-                    const helpMessage = welcomeMessage.querySelector('.model-selection-help');
-                    if (helpMessage) {
-                        helpMessage.style.display = 'none';
-                    }
-                    
-                    const existingIndicator = welcomeMessage.querySelector('.model-indicator');
-                    if (existingIndicator) {
-                        existingIndicator.innerHTML = `Model "<strong>${modelSelect.options[modelSelect.selectedIndex].text}</strong>" is selected`;
-                    } else {
-                        const modelIndicator = document.createElement('div');
-                        modelIndicator.className = 'model-indicator';
-                        modelIndicator.innerHTML = `Model "<strong>${modelSelect.options[modelSelect.selectedIndex].text}</strong>" is selected`;
-                        welcomeMessage.appendChild(modelIndicator);
-                    }
-                }
-            }
+            // Update the UI to show the selected model
+            updateModelIndicationUI();
             
             // Ensure we don't lose chat history when changing models
             if (conversations[currentChatId] && conversations[currentChatId].messages.length > 0) {
@@ -167,30 +149,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Store current chat ID to preserve memory across model changes
         const savedChatId = currentChatId;
         
+        // Sync the model selection to the sidebar dropdown
         modelSelect.value = modelSelectMobile.value;
         
-        // Update model indicator if visible
-        if (modelSelectMobile.value) {
-            const welcomeMessage = document.querySelector('.welcome-message');
-            if (welcomeMessage && welcomeMessage.style.display !== 'none') {
-                // Hide the model selection help message
-                const helpMessage = welcomeMessage.querySelector('.model-selection-help');
-                if (helpMessage) {
-                    helpMessage.style.display = 'none';
-                }
-                
-                const existingIndicator = welcomeMessage.querySelector('.model-indicator');
-                if (existingIndicator) {
-                    existingIndicator.innerHTML = `Model "<strong>${modelSelectMobile.options[modelSelectMobile.selectedIndex].text}</strong>" is selected`;
-                } else {
-                    const modelIndicator = document.createElement('div');
-                    modelIndicator.className = 'model-indicator';
-                    modelIndicator.innerHTML = `Model "<strong>${modelSelectMobile.options[modelSelectMobile.selectedIndex].text}</strong>" is selected`;
-                    welcomeMessage.appendChild(modelIndicator);
-                }
-            }
-            
-            // Ensure we don't lose chat history when changing models
+        // Update the UI to show the selected model
+        updateModelIndicationUI();
+        
+        // Ensure we don't lose chat history when changing models
             if (conversations[currentChatId] && conversations[currentChatId].messages.length > 0) {
                 // Make sure welcome message is hidden if we have existing messages
                 const welcomeMessage = document.querySelector('.welcome-message');
@@ -243,23 +208,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Copy model options from sidebar to mobile selector
         syncModelOptions();
         
-        // Set up event listeners for model selectors to sync values
-        modelSelect.addEventListener('change', function() {
-            // Sync mobile model dropdown with sidebar model dropdown
-            modelSelectMobile.value = modelSelect.value;
-            // Enable/disable start button based on selection
-            startChatBtn.disabled = !modelSelect.value;
-        });
-
-        modelSelectMobile.addEventListener('change', function() {
-            // Sync sidebar model dropdown with mobile model dropdown
-            modelSelect.value = modelSelectMobile.value;
-            // Enable/disable start button based on selection
-            startChatBtn.disabled = !modelSelectMobile.value;
-        });
-
-        // Initial state of start button based on model selection
+        // Initial state of start button and UI based on model selection
         startChatBtn.disabled = !modelSelect.value && !modelSelectMobile.value;
+        updateModelIndicationUI();
         
         // Log initial model values
         console.log("Initial app state - modelSelect:", modelSelect.value);
@@ -329,8 +280,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 modelSelect.value = modelSelectMobile.value;
             }
             
-            // Update the start button state
-            startChatBtn.disabled = !modelSelect.value && !modelSelectMobile.value;
+            // Update the UI to reflect the current selection
+            updateModelIndicationUI();
         }
     }
     
@@ -364,6 +315,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Force sync both model selectors to ensure they have the same value
             modelSelect.value = selectedModel;
             modelSelectMobile.value = selectedModel;
+            
+            // Update the model indicator UI
+            updateModelIndicationUI();
             
             console.log("Using model:", selectedModel);
             
@@ -482,6 +436,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedModel) {
             modelSelect.value = savedModel;
             if (modelSelectMobile) modelSelectMobile.value = savedModel;
+            
+            // Update the UI to reflect the loaded model
+            updateModelIndicationUI();
         }
         
         // Check if this is an image editing request
