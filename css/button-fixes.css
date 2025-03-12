@@ -1,0 +1,20 @@
+/* Fix for start button when disabled */
+.start-chat-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Fix for start button when enabled */
+.start-chat-btn:not(:disabled) {
+    opacity: 1;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+}
+
+/* Better visibility for model selection */
+.model-select-mobile:focus,
+#model:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
